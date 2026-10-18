@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache Pods
+        uses: actions/cache@v6
+        with:
+          path: Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('Podfile.lock') }}
+
+      - name: Install Pods
+        run: pod install
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace MarketWatch.xcworkspace \
+            -scheme MarketWatch \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
+            -quiet
