@@ -59,3 +59,10 @@ extension MarketCoinDTO {
         )
     }
 }
+
+extension Array where Element == MarketCoinDTO {
+    /// Coins without a current price are dropped.
+    func toAssets() -> [Asset] {
+        compactMap { $0.toAsset() }
+    }
+}

@@ -50,3 +50,23 @@ enum FixtureLoader {
 
     private final class BundleToken {}
 }
+
+extension MarketCoinDTO {
+    static func fixture(id: String, currentPrice: Double? = 1) -> MarketCoinDTO {
+        MarketCoinDTO(
+            id: id,
+            symbol: id,
+            name: id,
+            image: nil,
+            marketCapRank: nil,
+            currentPrice: currentPrice,
+            priceChange24h: nil,
+            priceChangePercentage24h: nil,
+            high24h: nil,
+            low24h: nil,
+            marketCap: nil,
+            totalVolume: nil,
+            sparklineIn7d: nil
+        )
+    }
+}
