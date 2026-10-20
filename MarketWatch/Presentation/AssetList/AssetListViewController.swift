@@ -7,6 +7,7 @@ final class AssetListViewController: UIViewController {
 
     private let viewModel: AssetListViewModel
     private let tableView = UITableView()
+    private let stateView = StateView()
     private let disposeBag = DisposeBag()
 
     init(viewModel: AssetListViewModel) {
@@ -34,6 +35,7 @@ private extension AssetListViewController {
     func setUpTableView() {
         tableView.register(UITableViewCell.self,
                            forCellReuseIdentifier: Self.cellIdentifier)
+        tableView.backgroundView = stateView
         tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
 
@@ -59,6 +61,12 @@ private extension AssetListViewController {
                 content.secondaryText = cellViewModel.priceText
                 cell.contentConfiguration = content
             }
+            .disposed(by: disposeBag)
+
+        output.contentState
+            .drive(onNext: { [stateView] state in
+                stateView.render(state)
+            })
             .disposed(by: disposeBag)
     }
 }
