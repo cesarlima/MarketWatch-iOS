@@ -1,12 +1,6 @@
 import RxCocoa
 import RxSwift
 
-enum ContentState: Equatable {
-    case loading
-    case loaded
-    case error(message: String)
-}
-
 final class AssetListViewModel {
     struct Input {}
 
@@ -57,42 +51,5 @@ final class AssetListViewModel {
 
         return Output(cells: cells,
                       contentState: contentState)
-    }
-}
-
-// MARK: - Content state
-
-private extension ContentState {
-    init(_ result: Result<[Asset], AppError>) {
-        switch result {
-        case .success:
-            self = .loaded
-
-        case let .failure(error):
-            self = .error(message: error.message)
-        }
-    }
-}
-
-// MARK: - Error messages
-
-extension AppError {
-    var message: String {
-        switch self {
-        case .offline:
-            return L10n.ErrorMessage.offline
-
-        case .rateLimited:
-            return L10n.ErrorMessage.rateLimited
-
-        case .server:
-            return L10n.ErrorMessage.server
-
-        case .decoding:
-            return L10n.ErrorMessage.decoding
-
-        case .unknown:
-            return L10n.ErrorMessage.unknown
-        }
     }
 }
