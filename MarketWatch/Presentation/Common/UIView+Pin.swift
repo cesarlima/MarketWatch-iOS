@@ -1,26 +1,5 @@
 import UIKit
 
-extension UILabel {
-    convenience init(font: UIFont,
-                     textColor: UIColor = .label) {
-        self.init(frame: .zero)
-        self.font = font
-        self.textColor = textColor
-        adjustsFontForContentSizeCategory = true
-    }
-}
-
-extension UIStackView {
-    static func vertical(_ views: [UIView], spacing: CGFloat) -> UIStackView {
-        let stack = UIStackView(arrangedSubviews: views)
-        stack.axis = .vertical
-        stack.spacing = spacing
-        return stack
-    }
-}
-
-// MARK: - Pinning
-
 protocol LayoutAnchors {
     var topAnchor: NSLayoutYAxisAnchor { get }
     var bottomAnchor: NSLayoutYAxisAnchor { get }
