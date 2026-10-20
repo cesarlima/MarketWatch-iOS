@@ -3,13 +3,16 @@ import UIKit
 
 final class AppComposer {
     private let repository: AssetRepository
+    private let formatter = AssetFormatter(locale: .current)
 
     init(arguments: [String]) {
         repository = Self.makeRepository(arguments: arguments)
     }
 
     func makeAssetList() -> UIViewController {
-        AssetListViewController()
+        let viewModel = AssetListViewModel(repository: repository,
+                                           formatter: formatter)
+        return AssetListViewController(viewModel: viewModel)
     }
 }
 
