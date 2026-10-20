@@ -18,14 +18,16 @@ struct AssetFormatter {
 
     init(locale: Locale) {
         currency = .currency(locale: locale, minimumFractionDigits: 2, maximumFractionDigits: 2)
-        smallCurrency = .currency(locale: locale, minimumFractionDigits: 2, maximumFractionDigits: 8)
+        smallCurrency = .significantCurrency(locale: locale)
         percent = .percent(locale: locale)
     }
 
     /// `81363` → "US$ 81.363,00".
-    /// Prices below 1 keep up to 8 decimals: `0.00000165` → "US$ 0,00000165", never "US$ 0,00".
+    /// Below 1 keeps up to 4 significant digits: `0.00000165` → "US$ 0,00000165", `0.999255` → "US$ 0,9993".
+    /// Compares after rounding, so `0.99996` reads "US$ 1,00" instead of "US$ 1,0".
     func price(_ value: Double) -> String {
-        let formatter = value < 1 ? smallCurrency : currency
+        let roundedValue = (value * 10_000).rounded() / 10_000
+        let formatter = roundedValue < 1 ? smallCurrency : currency
 
         return formatter.text(for: value)
     }
@@ -65,6 +67,14 @@ private extension NumberFormatter {
         formatter.minimumFractionDigits = minimumFractionDigits
         formatter.maximumFractionDigits = maximumFractionDigits
         formatter.roundingMode = .halfUp
+        return formatter
+    }
+
+    static func significantCurrency(locale: Locale) -> NumberFormatter {
+        let formatter = currency(locale: locale, minimumFractionDigits: 2, maximumFractionDigits: 2)
+        formatter.usesSignificantDigits = true
+        formatter.minimumSignificantDigits = 2
+        formatter.maximumSignificantDigits = 4
         return formatter
     }
 

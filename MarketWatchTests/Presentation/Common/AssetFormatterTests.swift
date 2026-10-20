@@ -10,8 +10,17 @@ final class AssetFormatterTests: XCTestCase {
         XCTAssertEqual(sut.price(1), formatted("US$ 1,00"))
     }
 
-    func test_price_tinyValuesKeepSignificantDigits() {
-        XCTAssertEqual(makeSUT().price(0.00000165), formatted("US$ 0,00000165"))
+    func test_price_belowOneKeepsFourSignificantDigits() {
+        let sut = makeSUT()
+
+        XCTAssertEqual(sut.price(0.00000165), formatted("US$ 0,00000165"))
+        XCTAssertEqual(sut.price(0.999255), formatted("US$ 0,9993"))
+        XCTAssertEqual(sut.price(0.331043), formatted("US$ 0,331"))
+        XCTAssertEqual(sut.price(0.5), formatted("US$ 0,50"))
+    }
+
+    func test_price_justBelowOne_roundsToOne() {
+        XCTAssertEqual(makeSUT().price(0.99996), formatted("US$ 1,00"))
     }
 
     func test_signedPercent() {
