@@ -11,7 +11,9 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             return
         }
         let window = UIWindow(windowScene: windowScene)
-        let coordinator = AppCoordinator(window: window)
+        let composer = AppComposer(arguments: ProcessInfo.processInfo.arguments)
+        let coordinator = AppCoordinator(window: window,
+                                         composer: composer)
         coordinator.start()
 
         self.window = window
