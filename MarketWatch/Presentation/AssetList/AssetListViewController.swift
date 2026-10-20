@@ -3,8 +3,6 @@ import RxSwift
 import UIKit
 
 final class AssetListViewController: UIViewController {
-    private static let cellIdentifier = "AssetCell"
-
     private let viewModel: AssetListViewModel
     private let tableView = UITableView()
     private let stateView = StateView()
@@ -33,18 +31,11 @@ final class AssetListViewController: UIViewController {
 
 private extension AssetListViewController {
     func setUpTableView() {
-        tableView.register(UITableViewCell.self,
-                           forCellReuseIdentifier: Self.cellIdentifier)
+        tableView.register(AssetCell.self,
+                           forCellReuseIdentifier: AssetCell.reuseIdentifier)
         tableView.backgroundView = stateView
-        tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
-
-        NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-        ])
+        tableView.pin(to: view)
     }
 }
 
@@ -55,11 +46,9 @@ private extension AssetListViewController {
         let output = viewModel.transform(AssetListViewModel.Input())
 
         output.cells
-            .drive(tableView.rx.items(cellIdentifier: Self.cellIdentifier)) { _, cellViewModel, cell in
-                var content = cell.defaultContentConfiguration()
-                content.text = cellViewModel.name
-                content.secondaryText = cellViewModel.priceText
-                cell.contentConfiguration = content
+            .drive(tableView.rx.items(cellIdentifier: AssetCell.reuseIdentifier,
+                                      cellType: AssetCell.self)) { _, cellViewModel, cell in
+                cell.configure(with: cellViewModel)
             }
             .disposed(by: disposeBag)
 
