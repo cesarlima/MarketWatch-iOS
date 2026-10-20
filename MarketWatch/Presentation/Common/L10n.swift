@@ -1,6 +1,14 @@
 import Foundation
 
 enum L10n {
+    enum ErrorMessage {
+        static let offline = text("error.offline")
+        static let rateLimited = text("error.rateLimited")
+        static let server = text("error.server")
+        static let decoding = text("error.decoding")
+        static let unknown = text("error.unknown")
+    }
+
     enum Value {
         static let unavailable = text("value.unavailable")
     }

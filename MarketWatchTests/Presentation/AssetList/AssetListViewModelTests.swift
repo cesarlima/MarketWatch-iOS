@@ -19,7 +19,7 @@ final class AssetListViewModelTests: XCTestCase {
     func test_initialLoad_requestsFirstPage() {
         let (sut, repository) = makeSUT()
 
-        _ = cells(of: sut)
+        _ = record(sut)
 
         XCTAssertEqual(repository.requestedPages, [.init(page: 1, pageSize: 25)])
     }
@@ -28,7 +28,7 @@ final class AssetListViewModelTests: XCTestCase {
         let (sut, repository) = makeSUT()
         repository.assetsResponse = response([.fixture()], at: 100)
 
-        let cells = cells(of: sut)
+        let cells = record(sut).cells
 
         let bitcoin = AssetCellViewModel(
             id: "bitcoin",
@@ -39,6 +39,36 @@ final class AssetListViewModelTests: XCTestCase {
             trend: .down
         )
         XCTAssertEqual(cells.events, [.next(100, [bitcoin]), .completed(100)])
+    }
+
+    func test_initialLoad_emitsLoadingThenLoaded() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture()], at: 100)
+
+        let contentState = record(sut).contentState
+
+        XCTAssertEqual(contentState.events, [.next(0, .loading), .next(100, .loaded), .completed(100)])
+    }
+
+    func test_initialLoadFailure_showsErrorState() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = failure(.offline, at: 100)
+
+        let contentState = record(sut).contentState
+
+        XCTAssertEqual(contentState.events, [
+            .next(0, .loading),
+            .next(100, .error(message: "Sem conexão com a internet.")),
+            .completed(100)
+        ])
+    }
+
+    func test_errorMessages() {
+        XCTAssertEqual(AppError.offline.message, "Sem conexão com a internet.")
+        XCTAssertEqual(AppError.rateLimited.message, "Muitas requisições em pouco tempo. Tente novamente em instantes.")
+        XCTAssertEqual(AppError.server(statusCode: 503).message, "O serviço de cotações está indisponível no momento.")
+        XCTAssertEqual(AppError.decoding.message, "Não foi possível ler os dados recebidos.")
+        XCTAssertEqual(AppError.unknown.message, "Algo deu errado. Tente novamente.")
     }
 
     // MARK: - Helpers
@@ -57,15 +87,33 @@ final class AssetListViewModelTests: XCTestCase {
             .asSingle()
     }
 
+    private func failure(_ error: AppError, at time: TestTime) -> Single<[Asset]> {
+        scheduler
+            .createColdObservable([.error(time, error)])
+            .asSingle()
+    }
+
     /// Drivers must be built inside `SharingScheduler.mock` to deliver on the test scheduler.
-    private func cells(of sut: AssetListViewModel) -> TestableObserver<[AssetCellViewModel]> {
-        let observer = scheduler.createObserver([AssetCellViewModel].self)
+    private func record(_ sut: AssetListViewModel) -> RecordedOutput {
+        let recorded = RecordedOutput(cells: scheduler.createObserver([AssetCellViewModel].self),
+                                      contentState: scheduler.createObserver(ContentState.self))
         SharingScheduler.mock(scheduler: scheduler) {
-            sut.transform(AssetListViewModel.Input()).cells
-                .drive(observer)
+            let output = sut.transform(AssetListViewModel.Input())
+            output.cells
+                .drive(recorded.cells)
+                .disposed(by: disposeBag)
+            output.contentState
+                .drive(recorded.contentState)
                 .disposed(by: disposeBag)
         }
         scheduler.start()
-        return observer
+        return recorded
     }
+}
+
+// MARK: - Recording
+
+private struct RecordedOutput {
+    let cells: TestableObserver<[AssetCellViewModel]>
+    let contentState: TestableObserver<ContentState>
 }

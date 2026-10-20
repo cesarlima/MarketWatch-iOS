@@ -1,1 +1,7 @@
+"error.offline" = "Sem conexão com a internet.";
+"error.rateLimited" = "Muitas requisições em pouco tempo. Tente novamente em instantes.";
+"error.server" = "O serviço de cotações está indisponível no momento.";
+"error.decoding" = "Não foi possível ler os dados recebidos.";
+"error.unknown" = "Algo deu errado. Tente novamente.";
+
 "value.unavailable" = "—";
