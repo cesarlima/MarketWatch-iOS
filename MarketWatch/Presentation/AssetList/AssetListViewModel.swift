@@ -21,35 +21,39 @@ final class AssetListViewModel {
     }
 
     func transform(_ input: Input) -> Output {
-        let firstPage = repository
+        let firstPage = loadFirstPage()
+
+        return Output(cells: cells(from: firstPage),
+                      contentState: contentState(from: firstPage))
+    }
+}
+
+// MARK: - Streams
+
+private extension AssetListViewModel {
+    typealias PageResult = Result<[Asset], AppError>
+
+    func loadFirstPage() -> Observable<PageResult> {
+        repository
             .assets(page: 1, pageSize: Self.pageSize)
-            .map { assets -> Result<[Asset], AppError> in
-                .success(assets)
-            }
-            .catch { error in
-                .just(.failure(error as? AppError ?? .unknown))
-            }
+            .asResult()
             .asObservable()
             .share(replay: 1)
+    }
 
-        let cells = firstPage
-            .compactMap { result -> [Asset]? in
-                guard case let .success(assets) = result else {
-                    return nil
-                }
-                return assets
-            }
+    func cells(from page: Observable<PageResult>) -> Driver<[AssetCellViewModel]> {
+        page
+            .compactMap { result in try? result.get() }
             .map { [formatter] assets in
                 assets.map { AssetCellViewModel(asset: $0, formatter: formatter) }
             }
             .asDriver(onErrorDriveWith: .empty())
+    }
 
-        let contentState = firstPage
+    func contentState(from page: Observable<PageResult>) -> Driver<ContentState> {
+        page
             .map(ContentState.init)
             .startWith(.loading)
             .asDriver(onErrorDriveWith: .empty())
-
-        return Output(cells: cells,
-                      contentState: contentState)
     }
 }
