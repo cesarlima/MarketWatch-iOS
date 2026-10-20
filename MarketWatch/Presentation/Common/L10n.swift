@@ -1,6 +1,10 @@
 import Foundation
 
 enum L10n {
+    enum List {
+        static let title = text("list.title")
+    }
+
     enum ErrorMessage {
         static let offline = text("error.offline")
         static let rateLimited = text("error.rateLimited")
