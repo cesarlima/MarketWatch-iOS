@@ -30,9 +30,9 @@ final class AssetDetailHeaderView: UIView {
         subtitleLabel.text = header.subtitle
         priceLabel.text = header.priceText
         changeLabel.text = header.changeText
-        changeLabel.textColor = header.trend.textColor
+        changeLabel.textColor = header.trend.color
         arrowView.image = header.trend.arrow
-        arrowView.tintColor = header.trend.textColor
+        arrowView.tintColor = header.trend.color
         arrowView.isHidden = header.trend == .neutral
     }
 }
@@ -53,35 +53,5 @@ private extension AssetDetailHeaderView {
 
         addSubview(contentStack)
         contentStack.pin(to: self)
-    }
-}
-
-// MARK: - Trend appearance
-
-private extension Trend {
-    var textColor: UIColor {
-        switch self {
-        case .up:
-            return .systemGreen
-
-        case .down:
-            return .systemRed
-
-        case .neutral:
-            return .secondaryLabel
-        }
-    }
-
-    var arrow: UIImage? {
-        switch self {
-        case .up:
-            return UIImage(systemName: "arrowtriangle.up.fill")
-
-        case .down:
-            return UIImage(systemName: "arrowtriangle.down.fill")
-
-        case .neutral:
-            return nil
-        }
     }
 }

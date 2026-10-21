@@ -31,7 +31,7 @@ final class AssetCell: UITableViewCell {
         symbolLabel.text = viewModel.symbol
         priceLabel.text = viewModel.priceText
         changePill.text = viewModel.changeText
-        changePill.backgroundColor = viewModel.trend.pillColor
+        changePill.backgroundColor = viewModel.trend.color
         iconView.load(viewModel.imageURL, with: imageLoader)
     }
 
@@ -82,22 +82,5 @@ private extension AssetCell {
         contentStack.alignment = .center
         quoteStack.alignment = .trailing
         nameLabel.numberOfLines = 1
-    }
-}
-
-// MARK: - Trend color
-
-private extension Trend {
-    var pillColor: UIColor {
-        switch self {
-        case .up:
-            return .systemGreen
-
-        case .down:
-            return .systemRed
-
-        case .neutral:
-            return .systemGray
-        }
     }
 }
