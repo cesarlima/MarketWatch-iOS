@@ -64,6 +64,18 @@ final class AssetListViewModelTests: XCTestCase {
         ])
     }
 
+    func test_selection_emitsAssetAtSelectedRow() {
+        let (sut, repository) = makeSUT()
+        let bitcoin = Asset.fixture(id: "bitcoin")
+        let ethereum = Asset.fixture(id: "ethereum", name: "Ethereum")
+        repository.assetsResponse = response([bitcoin, ethereum], at: 100)
+        let selection = scheduler.createHotObservable([.next(200, 1)]).asObservable()
+
+        let selectedAsset = record(sut, selection: selection).selectedAsset
+
+        XCTAssertEqual(selectedAsset.events, [.next(200, ethereum)])
+    }
+
     // MARK: - Helpers
 
     private func makeSUT() -> (sut: AssetListViewModel, repository: AssetRepositoryStub) {
@@ -87,16 +99,21 @@ final class AssetListViewModelTests: XCTestCase {
     }
 
     /// Drivers must be built inside `SharingScheduler.mock` to deliver on the test scheduler.
-    private func record(_ sut: AssetListViewModel) -> RecordedOutput {
+    private func record(_ sut: AssetListViewModel,
+                        selection: Observable<Int> = .never()) -> RecordedOutput {
         let recorded = RecordedOutput(cells: scheduler.createObserver([AssetCellViewModel].self),
-                                      contentState: scheduler.createObserver(ContentState.self))
+                                      contentState: scheduler.createObserver(ContentState.self),
+                                      selectedAsset: scheduler.createObserver(Asset.self))
         SharingScheduler.mock(scheduler: scheduler) {
-            let output = sut.transform(AssetListViewModel.Input())
+            let output = sut.transform(AssetListViewModel.Input(selection: selection))
             output.cells
                 .drive(recorded.cells)
                 .disposed(by: disposeBag)
             output.contentState
                 .drive(recorded.contentState)
+                .disposed(by: disposeBag)
+            output.selectedAsset
+                .emit(to: recorded.selectedAsset)
                 .disposed(by: disposeBag)
         }
         scheduler.start()
@@ -109,4 +126,5 @@ final class AssetListViewModelTests: XCTestCase {
 private struct RecordedOutput {
     let cells: TestableObserver<[AssetCellViewModel]>
     let contentState: TestableObserver<ContentState>
+    let selectedAsset: TestableObserver<Asset>
 }

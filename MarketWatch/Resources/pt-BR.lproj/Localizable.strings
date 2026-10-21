@@ -1,9 +1,24 @@
 "list.title" = "Mercado";
 
+"state.retry" = "Tentar novamente";
+
+"detail.symbolAndRank" = "%@ · #%@";
+"detail.chart7d" = "Últimos 7 dias";
+"detail.chartUnavailable" = "Gráfico indisponível";
+"detail.price24hAgo" = "Preço há 24h";
+"detail.high24h" = "Máx. 24h";
+"detail.low24h" = "Mín. 24h";
+"detail.marketCap" = "Market cap";
+"detail.volume24h" = "Volume 24h";
+
 "error.offline" = "Sem conexão com a internet.";
 "error.rateLimited" = "Muitas requisições em pouco tempo. Tente novamente em instantes.";
 "error.server" = "O serviço de cotações está indisponível no momento.";
 "error.decoding" = "Não foi possível ler os dados recebidos.";
 "error.unknown" = "Algo deu errado. Tente novamente.";
+
+"compact.trillion" = "tri";
+"compact.billion" = "bi";
+"compact.million" = "mi";
 
 "value.unavailable" = "—";

@@ -2,11 +2,14 @@ import RxCocoa
 import RxSwift
 
 final class AssetListViewModel {
-    struct Input {}
+    struct Input {
+        let selection: Observable<Int>
+    }
 
     struct Output {
         let cells: Driver<[AssetCellViewModel]>
         let contentState: Driver<ContentState>
+        let selectedAsset: Signal<Asset>
     }
 
     static let pageSize = 25
@@ -24,7 +27,8 @@ final class AssetListViewModel {
         let firstPage = loadFirstPage()
 
         return Output(cells: cells(from: firstPage),
-                      contentState: contentState(from: firstPage))
+                      contentState: contentState(from: firstPage),
+                      selectedAsset: selectedAsset(at: input.selection, in: firstPage))
     }
 }
 
@@ -55,5 +59,17 @@ private extension AssetListViewModel {
             .map(ContentState.init)
             .startWith(.loading)
             .asDriver(onErrorDriveWith: .empty())
+    }
+
+    func selectedAsset(at selection: Observable<Int>,
+                       in page: Observable<PageResult>) -> Signal<Asset> {
+        selection
+            .withLatestFrom(page) { row, result -> Asset? in
+                let assets = (try? result.get()) ?? []
+
+                return assets.indices.contains(row) ? assets[row] : nil
+            }
+            .compactMap { $0 }
+            .asSignal(onErrorSignalWith: .empty())
     }
 }

@@ -26,6 +26,15 @@ final class ImageLoaderTests: XCTestCase {
         XCTAssertEqual(requestCount, 1)
     }
 
+    func test_image_isReducedToMaxPixelSize() throws {
+        StubURLProtocol.stub(data: makePNGData(pixels: 300))
+
+        let image = try makeSUT(maxPixelSize: 96).image(for: url).toBlocking().single()
+
+        XCTAssertEqual(image?.cgImage?.width, 96)
+        XCTAssertEqual(image?.cgImage?.height, 96)
+    }
+
     func test_image_failedDownload_returnsNil() throws {
         StubURLProtocol.stub(data: Data(), statusCode: 404)
 
@@ -54,13 +63,18 @@ final class ImageLoaderTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeSUT() -> ImageLoader {
-        ImageLoader(session: Session(configuration: StubURLProtocol.makeConfiguration()))
+    private func makeSUT(maxPixelSize: Int = 96) -> ImageLoader {
+        ImageLoader(session: Session(configuration: StubURLProtocol.makeConfiguration()),
+                    maxPixelSize: maxPixelSize)
     }
 
-    private func makePNGData() -> Data {
-        UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).pngData { context in
-            context.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+    private func makePNGData(pixels: CGFloat = 1) -> Data {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let size = CGSize(width: pixels, height: pixels)
+
+        return UIGraphicsImageRenderer(size: size, format: format).pngData { context in
+            context.fill(CGRect(origin: .zero, size: size))
         }
     }
 }
