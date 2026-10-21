@@ -31,11 +31,40 @@ jobs:
       - name: Install Pods
         run: pod install
 
+      # The runner mounts simulator runtimes on demand; waiting for the device avoids an empty destination list.
+      - name: Boot simulator
+        run: |
+          RUNTIME="com.apple.CoreSimulator.SimRuntime.iOS-26-5"
+          DEVICE="iPhone 17"
+
+          xcrun simctl list runtimes
+
+          for attempt in 1 2 3 4 5 6; do
+            UDID=$(xcrun simctl list devices available --json \
+              | jq -r --arg runtime "$RUNTIME" --arg device "$DEVICE" \
+                '.devices[$runtime][]? | select(.name == $device) | .udid' \
+              | head -n 1)
+            if [ -n "$UDID" ]; then
+              break
+            fi
+            echo "Simulator not available yet (attempt $attempt of 6), waiting 10s"
+            sleep 10
+          done
+
+          if [ -z "$UDID" ]; then
+            echo "::error::$DEVICE ($RUNTIME) not found"
+            xcrun simctl list devices available
+            exit 1
+          fi
+
+          xcrun simctl bootstatus "$UDID" -b
+          echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+
       - name: Run unit tests
         run: |
           set -o pipefail
           xcodebuild test \
             -workspace MarketWatch.xcworkspace \
             -scheme MarketWatch \
-            -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
+            -destination "id=$SIMULATOR_UDID" \
             -quiet
