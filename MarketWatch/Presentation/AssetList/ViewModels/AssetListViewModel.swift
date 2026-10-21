@@ -4,6 +4,7 @@ import RxSwift
 final class AssetListViewModel {
     struct Input {
         let selection: Observable<Int>
+        let retry: Observable<Void>
     }
 
     struct Output {
@@ -24,50 +25,76 @@ final class AssetListViewModel {
     }
 
     func transform(_ input: Input) -> Output {
-        let firstPage = loadFirstPage()
+        let firstPage = loadFirstPage(on: input.retry.startWith(()))
+        let assets = loadedAssets(from: firstPage)
 
-        return Output(cells: cells(from: firstPage),
+        return Output(cells: cells(from: assets),
                       contentState: contentState(from: firstPage),
-                      selectedAsset: selectedAsset(at: input.selection, in: firstPage))
+                      selectedAsset: selectedAsset(at: input.selection, in: assets))
     }
 }
 
 // MARK: - Streams
 
 private extension AssetListViewModel {
-    typealias PageResult = Result<[Asset], AppError>
+    enum PageLoad {
+        case loading
+        case finished(Result<[Asset], AppError>)
+    }
 
-    func loadFirstPage() -> Observable<PageResult> {
-        repository
-            .assets(page: 1, pageSize: Self.pageSize)
-            .asResult()
-            .asObservable()
+    /// Each request emits `.loading` and then its result, always in that order.
+    func loadFirstPage(on requests: Observable<Void>) -> Observable<PageLoad> {
+        requests
+            .flatMapLatest { [repository] in
+                repository
+                    .assets(page: 1, pageSize: Self.pageSize)
+                    .asResult()
+                    .asObservable()
+                    .map(PageLoad.finished)
+                    .startWith(.loading)
+            }
             .share(replay: 1)
     }
 
-    func cells(from page: Observable<PageResult>) -> Driver<[AssetCellViewModel]> {
+    /// The assets of each successful load.
+    func loadedAssets(from page: Observable<PageLoad>) -> Observable<[Asset]> {
         page
-            .compactMap { result in try? result.get() }
+            .compactMap { load -> [Asset]? in
+                guard case let .finished(.success(assets)) = load else {
+                    return nil
+                }
+                return assets
+            }
+            .share(replay: 1)
+    }
+
+    func cells(from assets: Observable<[Asset]>) -> Driver<[AssetCellViewModel]> {
+        assets
             .map { [formatter] assets in
                 assets.map { AssetCellViewModel(asset: $0, formatter: formatter) }
             }
             .asDriver(onErrorDriveWith: .empty())
     }
 
-    func contentState(from page: Observable<PageResult>) -> Driver<ContentState> {
+    func contentState(from page: Observable<PageLoad>) -> Driver<ContentState> {
         page
-            .map(ContentState.init)
-            .startWith(.loading)
+            .map { load -> ContentState in
+                switch load {
+                case .loading:
+                    return .loading
+
+                case let .finished(result):
+                    return ContentState(result)
+                }
+            }
             .asDriver(onErrorDriveWith: .empty())
     }
 
     func selectedAsset(at selection: Observable<Int>,
-                       in page: Observable<PageResult>) -> Signal<Asset> {
+                       in assets: Observable<[Asset]>) -> Signal<Asset> {
         selection
-            .withLatestFrom(page) { row, result -> Asset? in
-                let assets = (try? result.get()) ?? []
-
-                return assets.indices.contains(row) ? assets[row] : nil
+            .withLatestFrom(assets) { row, assets -> Asset? in
+                assets.indices.contains(row) ? assets[row] : nil
             }
             .compactMap { $0 }
             .asSignal(onErrorSignalWith: .empty())

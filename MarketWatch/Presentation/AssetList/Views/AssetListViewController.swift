@@ -48,7 +48,9 @@ private extension AssetListViewController {
 
 private extension AssetListViewController {
     func bind() {
-        let input = AssetListViewModel.Input(selection: tableView.rx.itemSelected.map(\.row))
+        let selection = tableView.rx.itemSelected.map(\.row)
+        let input = AssetListViewModel.Input(selection: selection,
+                                             retry: stateView.retryTap.asObservable())
         let output = viewModel.transform(input)
 
         bindCells(output.cells)

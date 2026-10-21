@@ -39,7 +39,7 @@ final class AssetListViewModelTests: XCTestCase {
             changeText: "-0,45%",
             trend: .down
         )
-        XCTAssertEqual(cells.events, [.next(100, [bitcoin]), .completed(100)])
+        XCTAssertEqual(cells.events, [.next(100, [bitcoin])])
     }
 
     func test_initialLoad_emitsLoadingThenLoaded() {
@@ -48,7 +48,7 @@ final class AssetListViewModelTests: XCTestCase {
 
         let contentState = record(sut).contentState
 
-        XCTAssertEqual(contentState.events, [.next(0, .loading), .next(100, .loaded), .completed(100)])
+        XCTAssertEqual(contentState.events, [.next(0, .loading), .next(100, .loaded)])
     }
 
     func test_initialLoadFailure_showsErrorState() {
@@ -59,9 +59,27 @@ final class AssetListViewModelTests: XCTestCase {
 
         XCTAssertEqual(contentState.events, [
             .next(0, .loading),
-            .next(100, .error(message: "Sem conexão com a internet.")),
-            .completed(100)
+            .next(100, .error(message: "Sem conexão com a internet."))
         ])
+    }
+
+    func test_retry_afterError_loadsAgain() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = failure(.offline, at: 100)
+        scheduler.scheduleAt(400) {
+            repository.assetsResponse = self.response([.fixture()], at: 100)
+        }
+        let retry = scheduler.createHotObservable([.next(500, ())]).asObservable()
+
+        let contentState = record(sut, retry: retry).contentState
+
+        XCTAssertEqual(contentState.events, [
+            .next(0, .loading),
+            .next(100, .error(message: "Sem conexão com a internet.")),
+            .next(500, .loading),
+            .next(600, .loaded)
+        ])
+        XCTAssertEqual(repository.requestedPages, [.init(page: 1, pageSize: 25), .init(page: 1, pageSize: 25)])
     }
 
     func test_selection_emitsAssetAtSelectedRow() {
@@ -100,12 +118,14 @@ final class AssetListViewModelTests: XCTestCase {
 
     /// Drivers must be built inside `SharingScheduler.mock` to deliver on the test scheduler.
     private func record(_ sut: AssetListViewModel,
-                        selection: Observable<Int> = .never()) -> RecordedOutput {
+                        selection: Observable<Int> = .never(),
+                        retry: Observable<Void> = .never()) -> RecordedOutput {
         let recorded = RecordedOutput(cells: scheduler.createObserver([AssetCellViewModel].self),
                                       contentState: scheduler.createObserver(ContentState.self),
                                       selectedAsset: scheduler.createObserver(Asset.self))
         SharingScheduler.mock(scheduler: scheduler) {
-            let output = sut.transform(AssetListViewModel.Input(selection: selection))
+            let output = sut.transform(AssetListViewModel.Input(selection: selection,
+                                                                retry: retry))
             output.cells
                 .drive(recorded.cells)
                 .disposed(by: disposeBag)
