@@ -11,11 +11,17 @@ final class AppComposer {
         repository = Self.makeRepository(arguments: arguments)
     }
 
-    func makeAssetList() -> UIViewController {
+    func makeAssetList(onAssetSelected: @escaping (Asset) -> Void) -> UIViewController {
         let viewModel = AssetListViewModel(repository: repository,
                                            formatter: formatter)
-        return AssetListViewController(viewModel: viewModel,
-                                       imageLoader: imageLoader)
+        let viewController = AssetListViewController(viewModel: viewModel,
+                                                     imageLoader: imageLoader)
+        viewController.onAssetSelected = onAssetSelected
+        return viewController
+    }
+
+    func makeAssetDetail(asset: Asset) -> UIViewController {
+        AssetDetailViewController()
     }
 }
 

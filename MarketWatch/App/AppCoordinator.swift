@@ -13,9 +13,21 @@ final class AppCoordinator {
 
     func start() {
         navigationController.navigationBar.prefersLargeTitles = true
-        navigationController.viewControllers = [composer.makeAssetList()]
+        let assetList = composer.makeAssetList(onAssetSelected: { [weak self] asset in
+            self?.showDetail(of: asset)
+        })
+        navigationController.viewControllers = [assetList]
 
         window.rootViewController = navigationController
         window.makeKeyAndVisible()
+    }
+}
+
+// MARK: - Navigation
+
+private extension AppCoordinator {
+    func showDetail(of asset: Asset) {
+        let assetDetail = composer.makeAssetDetail(asset: asset)
+        navigationController.pushViewController(assetDetail, animated: true)
     }
 }

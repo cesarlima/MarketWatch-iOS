@@ -3,6 +3,8 @@ import RxSwift
 import UIKit
 
 final class AssetListViewController: UIViewController {
+    var onAssetSelected: ((Asset) -> Void)?
+
     private let viewModel: AssetListViewModel
     private let imageLoader: ImageLoader
     private let tableView = UITableView()
@@ -46,7 +48,8 @@ private extension AssetListViewController {
 
 private extension AssetListViewController {
     func bind() {
-        let output = viewModel.transform(AssetListViewModel.Input())
+        let input = AssetListViewModel.Input(selection: tableView.rx.itemSelected.map(\.row))
+        let output = viewModel.transform(input)
 
         output.cells
             .drive(tableView.rx.items(cellIdentifier: AssetCell.reuseIdentifier,
@@ -59,6 +62,18 @@ private extension AssetListViewController {
         output.contentState
             .drive(onNext: { [stateView] state in
                 stateView.render(state)
+            })
+            .disposed(by: disposeBag)
+
+        output.selectedAsset
+            .emit(onNext: { [weak self] asset in
+                self?.onAssetSelected?(asset)
+            })
+            .disposed(by: disposeBag)
+
+        tableView.rx.itemSelected
+            .subscribe(onNext: { [tableView] indexPath in
+                tableView.deselectRow(at: indexPath, animated: true)
             })
             .disposed(by: disposeBag)
     }
