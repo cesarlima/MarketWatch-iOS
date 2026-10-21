@@ -53,8 +53,11 @@ final class SparklineView: UIView {
     }
 
     /// Spreads the values across the width; the lowest goes to the bottom, the highest to the top.
-    /// Flat values draw a line in the middle; fewer than 2 values draw nothing.
+    /// Values that are not finite are ignored. Flat values, or a spread too large to compute, draw a line
+    /// in the middle; fewer than 2 values draw nothing.
     static func points(for values: [Double], in rect: CGRect) -> [CGPoint] {
+        let values = values.filter(\.isFinite)
+
         guard values.count >= 2, let lowest = values.min(), let highest = values.max() else {
             return []
         }
@@ -62,7 +65,7 @@ final class SparklineView: UIView {
         let stepX = rect.width / CGFloat(values.count - 1)
 
         return values.enumerated().map { index, value in
-            let height = range > 0 ? CGFloat((value - lowest) / range) : 0.5
+            let height = range > 0 && range.isFinite ? CGFloat((value - lowest) / range) : 0.5
 
             return CGPoint(x: rect.minX + CGFloat(index) * stepX,
                            y: rect.maxY - height * rect.height)
