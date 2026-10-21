@@ -34,6 +34,7 @@ final class AssetListViewModelTests: XCTestCase {
             id: "bitcoin",
             name: "Bitcoin",
             symbol: "BTC",
+            imageURL: URL(string: "https://example.com/bitcoin.png"),
             priceText: "US$\u{00A0}81.363,00",
             changeText: "-0,45%",
             trend: .down

@@ -4,6 +4,7 @@ import UIKit
 final class AppComposer {
     private let repository: AssetRepository
     private let formatter = AssetFormatter(locale: .current)
+    private let imageLoader = ImageLoader(session: .default)
 
     init(arguments: [String]) {
         repository = Self.makeRepository(arguments: arguments)
@@ -12,7 +13,8 @@ final class AppComposer {
     func makeAssetList() -> UIViewController {
         let viewModel = AssetListViewModel(repository: repository,
                                            formatter: formatter)
-        return AssetListViewController(viewModel: viewModel)
+        return AssetListViewController(viewModel: viewModel,
+                                       imageLoader: imageLoader)
     }
 }
 

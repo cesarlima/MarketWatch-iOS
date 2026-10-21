@@ -1,8 +1,12 @@
+import RxCocoa
+import RxSwift
 import UIKit
 
 final class AssetCell: UITableViewCell {
     static let reuseIdentifier = "AssetCell"
+    private static let iconSize: CGFloat = 32
 
+    private let iconView = UIImageView()
     private let nameLabel = UILabel(font: .preferredFont(forTextStyle: .headline))
     private let symbolLabel = UILabel(font: .preferredFont(forTextStyle: .subheadline),
                                       textColor: .secondaryLabel)
@@ -11,7 +15,8 @@ final class AssetCell: UITableViewCell {
 
     private lazy var identityStack = UIStackView.vertical([nameLabel, symbolLabel], spacing: 2)
     private lazy var quoteStack = UIStackView.vertical([priceLabel, changePill], spacing: 4)
-    private lazy var contentStack = UIStackView(arrangedSubviews: [identityStack, quoteStack])
+    private lazy var contentStack = UIStackView(arrangedSubviews: [iconView, identityStack, quoteStack])
+    private var disposeBag = DisposeBag()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -24,12 +29,21 @@ final class AssetCell: UITableViewCell {
         return nil
     }
 
-    func configure(with viewModel: AssetCellViewModel) {
+    func configure(with viewModel: AssetCellViewModel,
+                   imageLoader: ImageLoader) {
         nameLabel.text = viewModel.name
         symbolLabel.text = viewModel.symbol
         priceLabel.text = viewModel.priceText
         changePill.text = viewModel.changeText
         changePill.backgroundColor = viewModel.trend.pillColor
+        loadIcon(from: viewModel.imageURL, with: imageLoader)
+    }
+
+    /// A reused cell cancels the previous download, so a late icon never lands on the wrong row.
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        disposeBag = DisposeBag()
+        iconView.image = nil
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -47,6 +61,15 @@ final class AssetCell: UITableViewCell {
 
 private extension AssetCell {
     func setUpLayout() {
+        iconView.backgroundColor = .secondarySystemFill
+        iconView.contentMode = .scaleAspectFit
+        iconView.layer.cornerRadius = Self.iconSize / 2
+        iconView.clipsToBounds = true
+        NSLayoutConstraint.activate([
+            iconView.widthAnchor.constraint(equalToConstant: Self.iconSize),
+            iconView.heightAnchor.constraint(equalToConstant: Self.iconSize)
+        ])
+
         priceLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
         contentStack.spacing = 12
         contentView.addSubview(contentStack)
@@ -73,6 +96,21 @@ private extension AssetCell {
         contentStack.alignment = .center
         quoteStack.alignment = .trailing
         nameLabel.numberOfLines = 1
+    }
+}
+
+// MARK: - Icon
+
+private extension AssetCell {
+    func loadIcon(from url: URL?, with imageLoader: ImageLoader) {
+        guard let url else {
+            return
+        }
+        imageLoader
+            .image(for: url)
+            .asDriver(onErrorJustReturn: nil)
+            .drive(iconView.rx.image)
+            .disposed(by: disposeBag)
     }
 }
 

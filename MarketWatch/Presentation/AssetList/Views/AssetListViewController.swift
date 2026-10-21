@@ -4,12 +4,15 @@ import UIKit
 
 final class AssetListViewController: UIViewController {
     private let viewModel: AssetListViewModel
+    private let imageLoader: ImageLoader
     private let tableView = UITableView()
     private let stateView = StateView()
     private let disposeBag = DisposeBag()
 
-    init(viewModel: AssetListViewModel) {
+    init(viewModel: AssetListViewModel,
+         imageLoader: ImageLoader) {
         self.viewModel = viewModel
+        self.imageLoader = imageLoader
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -47,8 +50,9 @@ private extension AssetListViewController {
 
         output.cells
             .drive(tableView.rx.items(cellIdentifier: AssetCell.reuseIdentifier,
-                                      cellType: AssetCell.self)) { _, cellViewModel, cell in
-                cell.configure(with: cellViewModel)
+                                      cellType: AssetCell.self)) { [imageLoader] _, cellViewModel, cell in
+                cell.configure(with: cellViewModel,
+                               imageLoader: imageLoader)
             }
             .disposed(by: disposeBag)
 
