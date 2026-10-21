@@ -4,7 +4,8 @@ import UIKit
 final class AppComposer {
     private let repository: AssetRepository
     private let formatter = AssetFormatter(locale: .current)
-    private let imageLoader = ImageLoader(session: .default)
+    private let imageLoader = ImageLoader(session: .default,
+                                          maxPixelSize: 96)
 
     init(arguments: [String]) {
         repository = Self.makeRepository(arguments: arguments)
