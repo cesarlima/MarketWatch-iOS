@@ -42,6 +42,15 @@ struct AssetFormatter {
         return signed(magnitude, trend: Trend(change: value))
     }
 
+    /// Absolute 24h change, with the same digits rule as `price`: `-347.47512` → "-US$ 347,48",
+    /// `120.5` → "+US$ 120,50", `-0.000517` → "-US$ 0,0005172".
+    func signedPrice(_ value: Double?) -> String {
+        guard let value else {
+            return L10n.Value.unavailable
+        }
+        return signed(price(abs(value)), trend: Trend(change: value))
+    }
+
     private func signed(_ magnitude: String, trend: Trend) -> String {
         switch trend {
         case .up:

@@ -5,6 +5,12 @@ enum L10n {
         static let title = text("list.title")
     }
 
+    enum Detail {
+        static func symbolAndRank(_ symbol: String, _ rank: Int) -> String {
+            text("detail.symbolAndRank", symbol, String(rank))
+        }
+    }
+
     enum ErrorMessage {
         static let offline = text("error.offline")
         static let rateLimited = text("error.rateLimited")

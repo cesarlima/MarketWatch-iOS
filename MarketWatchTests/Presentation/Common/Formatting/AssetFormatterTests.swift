@@ -32,6 +32,15 @@ final class AssetFormatterTests: XCTestCase {
         XCTAssertEqual(sut.signedPercent(nil), "—")
     }
 
+    func test_signedPrice() {
+        let sut = makeSUT()
+
+        XCTAssertEqual(sut.signedPrice(-347.47512), formatted("-US$ 347,48"))
+        XCTAssertEqual(sut.signedPrice(120.5), formatted("+US$ 120,50"))
+        XCTAssertEqual(sut.signedPrice(-0.000517220109911287), formatted("-US$ 0,0005172"))
+        XCTAssertEqual(sut.signedPrice(nil), "—")
+    }
+
     // MARK: - Helpers
 
     private func makeSUT() -> AssetFormatter {
