@@ -51,26 +51,39 @@ private extension AssetListViewController {
         let input = AssetListViewModel.Input(selection: tableView.rx.itemSelected.map(\.row))
         let output = viewModel.transform(input)
 
-        output.cells
+        bindCells(output.cells)
+        bindContentState(output.contentState)
+        bindSelectedAsset(output.selectedAsset)
+        deselectTappedRows()
+    }
+
+    func bindCells(_ cells: Driver<[AssetCellViewModel]>) {
+        cells
             .drive(tableView.rx.items(cellIdentifier: AssetCell.reuseIdentifier,
                                       cellType: AssetCell.self)) { [imageLoader] _, cellViewModel, cell in
                 cell.configure(with: cellViewModel,
                                imageLoader: imageLoader)
             }
             .disposed(by: disposeBag)
+    }
 
-        output.contentState
+    func bindContentState(_ contentState: Driver<ContentState>) {
+        contentState
             .drive(onNext: { [stateView] state in
                 stateView.render(state)
             })
             .disposed(by: disposeBag)
+    }
 
-        output.selectedAsset
+    func bindSelectedAsset(_ selectedAsset: Signal<Asset>) {
+        selectedAsset
             .emit(onNext: { [weak self] asset in
                 self?.onAssetSelected?(asset)
             })
             .disposed(by: disposeBag)
+    }
 
+    func deselectTappedRows() {
         tableView.rx.itemSelected
             .subscribe(onNext: { [tableView] indexPath in
                 tableView.deselectRow(at: indexPath, animated: true)
