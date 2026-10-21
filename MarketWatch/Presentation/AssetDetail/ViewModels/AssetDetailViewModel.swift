@@ -6,6 +6,7 @@ final class AssetDetailViewModel {
 
     struct Output {
         let header: Driver<AssetDetailHeader>
+        let stats: Driver<[AssetDetailStat]>
     }
 
     private let asset: Asset
@@ -19,7 +20,9 @@ final class AssetDetailViewModel {
 
     func transform(_ input: Input) -> Output {
         let header = AssetDetailHeader(asset: asset, formatter: formatter)
+        let stats = AssetDetailStat.stats(for: asset, formatter: formatter)
 
-        return Output(header: .just(header))
+        return Output(header: .just(header),
+                      stats: .just(stats))
     }
 }

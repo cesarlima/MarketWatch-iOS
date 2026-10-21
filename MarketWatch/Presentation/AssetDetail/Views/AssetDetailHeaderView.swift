@@ -42,6 +42,9 @@ final class AssetDetailHeaderView: UIView {
 private extension AssetDetailHeaderView {
     func setUpLayout() {
         nameLabel.numberOfLines = 0
+        priceLabel.adjustsFontSizeToFitWidth = true
+        priceLabel.minimumScaleFactor = 0.5
+        changeLabel.numberOfLines = 0
         arrowView.preferredSymbolConfiguration = UIImage.SymbolConfiguration(textStyle: .footnote)
 
         titleRow.spacing = 12

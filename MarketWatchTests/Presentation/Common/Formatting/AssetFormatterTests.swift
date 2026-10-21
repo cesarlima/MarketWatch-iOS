@@ -29,6 +29,7 @@ final class AssetFormatterTests: XCTestCase {
         XCTAssertEqual(sut.signedPercent(1.82), "+1,82%")
         XCTAssertEqual(sut.signedPercent(-0.45337), "-0,45%")
         XCTAssertEqual(sut.signedPercent(0), "0,00%")
+        XCTAssertEqual(sut.signedPercent(-0.003), "0,00%")
         XCTAssertEqual(sut.signedPercent(nil), "—")
     }
 
@@ -39,6 +40,26 @@ final class AssetFormatterTests: XCTestCase {
         XCTAssertEqual(sut.signedPrice(120.5), formatted("+US$ 120,50"))
         XCTAssertEqual(sut.signedPrice(-0.000517220109911287), formatted("-US$ 0,0005172"))
         XCTAssertEqual(sut.signedPrice(nil), "—")
+    }
+
+    func test_compactCurrency() {
+        let sut = makeSUT()
+
+        XCTAssertEqual(sut.compactCurrency(1_635_294_681_111), formatted("US$ 1,64 tri"))
+        XCTAssertEqual(sut.compactCurrency(14_329_628_188), formatted("US$ 14,33 bi"))
+        XCTAssertEqual(sut.compactCurrency(52_700_000), formatted("US$ 52,70 mi"))
+    }
+
+    func test_compactCurrency_belowOneMillion_showsWholeValue() {
+        XCTAssertEqual(makeSUT().compactCurrency(532_104), formatted("US$ 532.104"))
+    }
+
+    func test_compactCurrency_roundsUpToNextUnit() {
+        XCTAssertEqual(makeSUT().compactCurrency(999_996_000), formatted("US$ 1,00 bi"))
+    }
+
+    func test_compactCurrency_nil() {
+        XCTAssertEqual(makeSUT().compactCurrency(nil), "—")
     }
 
     // MARK: - Helpers

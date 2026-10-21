@@ -26,6 +26,24 @@ final class AssetDetailHeaderTests: XCTestCase {
         XCTAssertEqual(header.trend, .neutral)
     }
 
+    func test_header_tinyFall_followsDollarChange() {
+        let asset = Asset.fixture(price: 0.9997,
+                                  change24h: -0.00003137,
+                                  changePercentage24h: -0.003)
+
+        let header = makeHeader(for: asset)
+
+        XCTAssertEqual(header.changeText, "-US$\u{00A0}0,00003137 (0,00%)")
+        XCTAssertEqual(header.trend, .down)
+    }
+
+    func test_header_tinyPercentWithoutDollarChange_isNeutral() {
+        let header = makeHeader(for: .fixture(change24h: nil, changePercentage24h: -0.003))
+
+        XCTAssertEqual(header.changeText, "0,00%")
+        XCTAssertEqual(header.trend, .neutral)
+    }
+
     // MARK: - Helpers
 
     private func makeHeader(for asset: Asset) -> AssetDetailHeader {

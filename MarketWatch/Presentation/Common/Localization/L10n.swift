@@ -6,6 +6,12 @@ enum L10n {
     }
 
     enum Detail {
+        static let price24hAgo = text("detail.price24hAgo")
+        static let high24h = text("detail.high24h")
+        static let low24h = text("detail.low24h")
+        static let marketCap = text("detail.marketCap")
+        static let volume24h = text("detail.volume24h")
+
         static func symbolAndRank(_ symbol: String, _ rank: Int) -> String {
             text("detail.symbolAndRank", symbol, String(rank))
         }
@@ -17,6 +23,12 @@ enum L10n {
         static let server = text("error.server")
         static let decoding = text("error.decoding")
         static let unknown = text("error.unknown")
+    }
+
+    enum Compact {
+        static let trillion = text("compact.trillion")
+        static let billion = text("compact.billion")
+        static let million = text("compact.million")
     }
 
     enum Value {

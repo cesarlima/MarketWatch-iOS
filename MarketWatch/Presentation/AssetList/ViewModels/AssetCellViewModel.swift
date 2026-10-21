@@ -21,7 +21,7 @@ extension AssetCellViewModel {
             imageURL: asset.imageURL,
             priceText: formatter.price(asset.currentPrice),
             changeText: formatter.signedPercent(asset.priceChangePercentage24h),
-            trend: Trend(change: asset.priceChangePercentage24h)
+            trend: Trend(percentChange: asset.priceChangePercentage24h)
         )
     }
 }

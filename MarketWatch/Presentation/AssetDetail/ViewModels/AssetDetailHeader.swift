@@ -19,7 +19,7 @@ extension AssetDetailHeader {
             imageURL: asset.imageURL,
             priceText: formatter.price(asset.currentPrice),
             changeText: Self.changeText(for: asset, formatter: formatter),
-            trend: Trend(change: asset.priceChangePercentage24h)
+            trend: Self.trend(for: asset)
         )
     }
 }
@@ -30,6 +30,13 @@ private extension AssetDetailHeader {
             return symbol
         }
         return L10n.Detail.symbolAndRank(symbol, rank)
+    }
+
+    static func trend(for asset: Asset) -> Trend {
+        guard let dollarChange = asset.priceChange24h else {
+            return Trend(percentChange: asset.priceChangePercentage24h)
+        }
+        return Trend(change: dollarChange)
     }
 
     static func changeText(for asset: Asset, formatter: AssetFormatter) -> String {

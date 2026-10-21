@@ -21,10 +21,20 @@ final class AssetDetailViewModelTests: XCTestCase {
         let sut = AssetDetailViewModel(asset: asset,
                                        formatter: makeFormatter())
 
-        let header = record(sut)
+        let header = record(sut).header
 
         XCTAssertEqual(header.events.first?.time, 0)
         XCTAssertEqual(header.events.first?.value.element?.name, "Bitcoin")
+    }
+
+    func test_stats_showListDataRightAway() {
+        let sut = AssetDetailViewModel(asset: .fixture(),
+                                       formatter: makeFormatter())
+
+        let stats = record(sut).stats
+
+        XCTAssertEqual(stats.events.first?.time, 0)
+        XCTAssertEqual(stats.events.first?.value.element?.count, 5)
     }
 
     // MARK: - Helpers
@@ -34,14 +44,26 @@ final class AssetDetailViewModelTests: XCTestCase {
     }
 
     /// Drivers must be built inside `SharingScheduler.mock` to deliver on the test scheduler.
-    private func record(_ sut: AssetDetailViewModel) -> TestableObserver<AssetDetailHeader> {
-        let header = scheduler.createObserver(AssetDetailHeader.self)
+    private func record(_ sut: AssetDetailViewModel) -> RecordedOutput {
+        let recorded = RecordedOutput(header: scheduler.createObserver(AssetDetailHeader.self),
+                                      stats: scheduler.createObserver([AssetDetailStat].self))
         SharingScheduler.mock(scheduler: scheduler) {
-            sut.transform(AssetDetailViewModel.Input()).header
-                .drive(header)
+            let output = sut.transform(AssetDetailViewModel.Input())
+            output.header
+                .drive(recorded.header)
+                .disposed(by: disposeBag)
+            output.stats
+                .drive(recorded.stats)
                 .disposed(by: disposeBag)
         }
         scheduler.start()
-        return header
+        return recorded
     }
+}
+
+// MARK: - Recording
+
+private struct RecordedOutput {
+    let header: TestableObserver<AssetDetailHeader>
+    let stats: TestableObserver<[AssetDetailStat]>
 }
