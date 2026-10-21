@@ -10,6 +10,7 @@ enum L10n {
     }
 
     enum Detail {
+        static let chart7d = text("detail.chart7d")
         static let chartUnavailable = text("detail.chartUnavailable")
         static let price24hAgo = text("detail.price24hAgo")
         static let high24h = text("detail.high24h")

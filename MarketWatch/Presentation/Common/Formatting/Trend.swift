@@ -21,4 +21,14 @@ enum Trend: Equatable {
     init(percentChange: Double?) {
         self.init(change: percentChange.map { ($0 * 100).rounded() / 100 })
     }
+
+    /// Up, down or neutral for an asset's last 24h: the dollar change when there is one,
+    /// otherwise the percentage as it appears on screen.
+    init(dailyChangeOf asset: Asset) {
+        guard let dollarChange = asset.priceChange24h else {
+            self.init(percentChange: asset.priceChangePercentage24h)
+            return
+        }
+        self.init(change: dollarChange)
+    }
 }

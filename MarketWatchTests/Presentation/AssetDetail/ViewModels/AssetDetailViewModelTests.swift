@@ -59,7 +59,10 @@ final class AssetDetailViewModelTests: XCTestCase {
 
         let chartState = record(sut).chartState
 
-        XCTAssertEqual(chartState.events, [.next(0, .loading), .next(100, .loaded)])
+        XCTAssertEqual(chartState.events, [
+            .next(0, .loading),
+            .next(100, .loaded(sparkline: [80_000, 81_000, 81_363], trend: .down))
+        ])
     }
 
     func test_failure_showsChartUnavailableAndKeepsListData() {

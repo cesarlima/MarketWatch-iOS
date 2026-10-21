@@ -3,6 +3,7 @@
 "state.retry" = "Tentar novamente";
 
 "detail.symbolAndRank" = "%@ · #%@";
+"detail.chart7d" = "Últimos 7 dias";
 "detail.chartUnavailable" = "Gráfico indisponível";
 "detail.price24hAgo" = "Preço há 24h";
 "detail.high24h" = "Máx. 24h";
