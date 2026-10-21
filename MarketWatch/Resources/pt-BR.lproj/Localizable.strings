@@ -1,6 +1,9 @@
 "list.title" = "Mercado";
 
+"state.retry" = "Tentar novamente";
+
 "detail.symbolAndRank" = "%@ · #%@";
+"detail.chartUnavailable" = "Gráfico indisponível";
 "detail.price24hAgo" = "Preço há 24h";
 "detail.high24h" = "Máx. 24h";
 "detail.low24h" = "Mín. 24h";

@@ -5,7 +5,12 @@ enum L10n {
         static let title = text("list.title")
     }
 
+    enum State {
+        static let retry = text("state.retry")
+    }
+
     enum Detail {
+        static let chartUnavailable = text("detail.chartUnavailable")
         static let price24hAgo = text("detail.price24hAgo")
         static let high24h = text("detail.high24h")
         static let low24h = text("detail.low24h")

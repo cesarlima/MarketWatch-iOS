@@ -22,6 +22,7 @@ final class AppComposer {
 
     func makeAssetDetail(asset: Asset) -> UIViewController {
         let viewModel = AssetDetailViewModel(asset: asset,
+                                             repository: repository,
                                              formatter: formatter)
         return AssetDetailViewController(viewModel: viewModel,
                                          imageLoader: imageLoader)

@@ -8,7 +8,9 @@ final class AssetRepositoryStub: AssetRepository {
     }
 
     private(set) var requestedPages: [PageRequest] = []
+    private(set) var requestedAssetIDs: [String] = []
     var assetsResponse: Single<[Asset]> = .never()
+    var assetResponse: Single<Asset> = .never()
 
     func assets(page: Int, pageSize: Int) -> Single<[Asset]> {
         Single.deferred { [weak self] in
@@ -19,7 +21,11 @@ final class AssetRepositoryStub: AssetRepository {
     }
 
     func asset(id: String) -> Single<Asset> {
-        .never()
+        Single.deferred { [weak self] in
+            self?.requestedAssetIDs.append(id)
+
+            return self?.assetResponse ?? .never()
+        }
     }
 
     func searchAssets(query: String) -> Single<[Asset]> {

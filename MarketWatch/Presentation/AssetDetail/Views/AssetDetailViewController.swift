@@ -9,8 +9,9 @@ final class AssetDetailViewController: UIViewController {
 
     private let scrollView = UIScrollView()
     private let headerView = AssetDetailHeaderView()
+    private let chartView = AssetChartView()
     private let statsView = AssetStatsView()
-    private lazy var contentStack = UIStackView.vertical([headerView, statsView], spacing: 24)
+    private lazy var contentStack = UIStackView.vertical([headerView, chartView, statsView], spacing: 24)
 
     init(viewModel: AssetDetailViewModel,
          imageLoader: ImageLoader) {
@@ -56,7 +57,8 @@ private extension AssetDetailViewController {
 
 private extension AssetDetailViewController {
     func bind() {
-        let output = viewModel.transform(AssetDetailViewModel.Input())
+        let input = AssetDetailViewModel.Input(retry: chartView.retryTap.asObservable())
+        let output = viewModel.transform(input)
 
         output.header
             .drive(onNext: { [headerView, imageLoader] header in
@@ -67,6 +69,12 @@ private extension AssetDetailViewController {
         output.stats
             .drive(onNext: { [statsView] stats in
                 statsView.render(stats)
+            })
+            .disposed(by: disposeBag)
+
+        output.chartState
+            .drive(onNext: { [chartView] state in
+                chartView.render(state)
             })
             .disposed(by: disposeBag)
     }
