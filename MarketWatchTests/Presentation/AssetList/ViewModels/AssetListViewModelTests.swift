@@ -162,7 +162,7 @@ final class AssetListViewModelTests: XCTestCase {
 
     func test_synchronousLoad_presentsAssetsWithoutDuplicateRequests() {
         let (sut, repository) = makeSUT()
-        repository.assetsResponse = .just([.fixture()])
+        repository.assetsResponse = .just(.fixture())
 
         let recorded = record(sut)
 
@@ -215,7 +215,7 @@ final class AssetListViewModelTests: XCTestCase {
         repository.assetsResponse = response([.fixture(id: "old")], at: 100)
         let asset = Asset.fixture(id: "new")
         scheduler.scheduleAt(200) {
-            repository.assetsResponse = .just([asset])
+            repository.assetsResponse = .just(.fixture([asset]))
         }
         let refresh = scheduler.createHotObservable([.next(300, ())]).asObservable()
         let selection = scheduler.createHotObservable([
@@ -237,13 +237,13 @@ final class AssetListViewModelTests: XCTestCase {
         return (sut, repository)
     }
 
-    private func response(_ assets: [Asset], at time: TestTime) -> Single<[Asset]> {
+    private func response(_ assets: [Asset], at time: TestTime) -> Single<AssetPage> {
         scheduler
-            .createColdObservable([.next(time, assets), .completed(time)])
+            .createColdObservable([.next(time, AssetPage.fixture(assets)), .completed(time)])
             .asSingle()
     }
 
-    private func failure(_ error: AppError, at time: TestTime) -> Single<[Asset]> {
+    private func failure(_ error: AppError, at time: TestTime) -> Single<AssetPage> {
         scheduler
             .createColdObservable([.error(time, error)])
             .asSingle()

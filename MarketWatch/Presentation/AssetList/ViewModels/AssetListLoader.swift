@@ -43,6 +43,7 @@ private extension AssetListLoader {
             .flatMapLatest { [repository] _ in
                 repository
                     .assets(page: 1, pageSize: Self.pageSize)
+                    .map(\.assets)
                     .asResult()
                     .asObservable()
             }

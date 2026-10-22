@@ -8,11 +8,12 @@ final class MockAssetRepositoryTests: XCTestCase {
     func test_assets_paginatesBundledJSON() throws {
         let sut = makeSUT()
 
-        let pageSizes = try (1...5).map { page in
-            try sut.assets(page: page, pageSize: 25).toBlocking().single().count
+        let pages = try (1...5).map { page in
+            try sut.assets(page: page, pageSize: 25).toBlocking().single()
         }
 
-        XCTAssertEqual(pageSizes, [25, 25, 25, 25, 0])
+        XCTAssertEqual(pages.map(\.assets.count), [25, 25, 25, 25, 0])
+        XCTAssertEqual(pages.map(\.hasMore), [true, true, true, false, false])
     }
 
     func test_search_matchesSymbolCaseInsensitive() throws {

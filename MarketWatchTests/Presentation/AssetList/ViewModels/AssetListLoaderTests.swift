@@ -20,7 +20,7 @@ final class AssetListLoaderTests: XCTestCase {
     func test_failures_publishEachAttemptAfterUpdatingState() {
         let repository = AssetRepositoryStub()
         let asset = Asset.fixture()
-        repository.assetsResponse = .just([asset])
+        repository.assetsResponse = .just(.fixture([asset]))
         let sut = AssetListLoader(repository: repository)
         var latest: AssetListState?
         var statesAtFailure: [AssetListState] = []
@@ -66,7 +66,7 @@ final class AssetListLoaderTests: XCTestCase {
     func test_load_deliversSynchronousResult() {
         let repository = AssetRepositoryStub()
         let asset = Asset.fixture()
-        repository.assetsResponse = .just([asset])
+        repository.assetsResponse = .just(.fixture([asset]))
         let sut = AssetListLoader(repository: repository)
         var states: [AssetListState] = []
         let subscription = sut.state.subscribe(onNext: { states.append($0) })
@@ -81,7 +81,7 @@ final class AssetListLoaderTests: XCTestCase {
     func test_refreshFailure_preservesAssetsAndStopsLoading() {
         let repository = AssetRepositoryStub()
         let asset = Asset.fixture()
-        repository.assetsResponse = .just([asset])
+        repository.assetsResponse = .just(.fixture([asset]))
         let sut = AssetListLoader(repository: repository)
         var states: [AssetListState] = []
         let subscription = sut.state.subscribe(onNext: { states.append($0) })
@@ -101,7 +101,7 @@ final class AssetListLoaderTests: XCTestCase {
         let scheduler = TestScheduler(initialClock: 0)
         let repository = AssetRepositoryStub()
         let old = scheduler.createColdObservable([
-            .next(100, [Asset.fixture(id: "old")]), .completed(100)
+            .next(100, AssetPage.fixture([.fixture(id: "old")])), .completed(100)
         ])
         repository.assetsResponse = old.asSingle()
         let sut = AssetListLoader(repository: repository)
@@ -110,7 +110,7 @@ final class AssetListLoaderTests: XCTestCase {
         defer { subscription.dispose() }
         sut.load()
         scheduler.scheduleAt(10) {
-            repository.assetsResponse = .just([.fixture(id: "new")])
+            repository.assetsResponse = .just(.fixture([.fixture(id: "new")]))
             sut.refresh()
         }
 

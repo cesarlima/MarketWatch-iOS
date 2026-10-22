@@ -9,10 +9,10 @@ final class AssetRepositoryStub: AssetRepository {
 
     private(set) var requestedPages: [PageRequest] = []
     private(set) var requestedAssetIDs: [String] = []
-    var assetsResponse: Single<[Asset]> = .never()
+    var assetsResponse: Single<AssetPage> = .never()
     var assetResponse: Single<Asset> = .never()
 
-    func assets(page: Int, pageSize: Int) -> Single<[Asset]> {
+    func assets(page: Int, pageSize: Int) -> Single<AssetPage> {
         Single.deferred { [weak self] in
             self?.requestedPages.append(PageRequest(page: page, pageSize: pageSize))
 

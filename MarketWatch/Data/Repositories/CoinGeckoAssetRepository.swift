@@ -9,12 +9,16 @@ final class CoinGeckoAssetRepository: AssetRepository {
         self.httpClient = httpClient
     }
 
-    func assets(page: Int, pageSize: Int) -> Single<[Asset]> {
+    /// A full page means there may be more; it is counted before coins without a price are dropped.
+    func assets(page: Int, pageSize: Int) -> Single<AssetPage> {
         let endpoint = Endpoint.marketPage(page: page, perPage: pageSize)
 
         return httpClient
             .request(endpoint, as: [MarketCoinDTO].self)
-            .map { coins in coins.toAssets() }
+            .map { coins in
+                AssetPage(assets: coins.toAssets(),
+                          hasMore: coins.count >= pageSize)
+            }
     }
 
     func asset(id: String) -> Single<Asset> {

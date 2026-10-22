@@ -22,9 +22,38 @@ final class CoinGeckoAssetRepositoryTests: XCTestCase {
             .fixture(id: "solana")
         ])
 
-        let assets = try sut.assets(page: 1, pageSize: 25).toBlocking().single()
+        let page = try sut.assets(page: 1, pageSize: 25).toBlocking().single()
 
-        XCTAssertEqual(assets.map(\.id), ["bitcoin", "solana"])
+        XCTAssertEqual(page.assets.map(\.id), ["bitcoin", "solana"])
+    }
+
+    func test_assets_fullPage_hasMore() throws {
+        let (sut, client) = makeSUT()
+        client.stubMarkets((1...25).map { .fixture(id: "coin-\($0)") })
+
+        let page = try sut.assets(page: 1, pageSize: 25).toBlocking().single()
+
+        XCTAssertTrue(page.hasMore)
+    }
+
+    func test_assets_shortPage_hasNoMore() throws {
+        let (sut, client) = makeSUT()
+        client.stubMarkets((1...10).map { .fixture(id: "coin-\($0)") })
+
+        let page = try sut.assets(page: 1, pageSize: 25).toBlocking().single()
+
+        XCTAssertFalse(page.hasMore)
+    }
+
+    func test_assets_fullPageWithCoinWithoutPrice_stillHasMore() throws {
+        let (sut, client) = makeSUT()
+        let coins = (1...24).map { MarketCoinDTO.fixture(id: "coin-\($0)") }
+        client.stubMarkets(coins + [.fixture(id: "no-price", currentPrice: nil)])
+
+        let page = try sut.assets(page: 1, pageSize: 25).toBlocking().single()
+
+        XCTAssertEqual(page.assets.count, 24)
+        XCTAssertTrue(page.hasMore)
     }
 
     func test_search_requestsAtMost25Ids() throws {

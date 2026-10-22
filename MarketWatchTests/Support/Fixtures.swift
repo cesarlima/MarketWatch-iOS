@@ -35,6 +35,13 @@ extension Asset {
     }
 }
 
+extension AssetPage {
+    static func fixture(_ assets: [Asset] = [.fixture()],
+                        hasMore: Bool = false) -> AssetPage {
+        AssetPage(assets: assets, hasMore: hasMore)
+    }
+}
+
 enum FixtureLoader {
     static func data(named name: String) throws -> Data {
         let bundle = Bundle(for: BundleToken.self)
