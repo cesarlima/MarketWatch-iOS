@@ -3,6 +3,7 @@
 "search.placeholder" = "Buscar por nome ou símbolo";
 
 "state.retry" = "Tentar novamente";
+"state.empty.search" = "Nenhum ativo encontrado para “%@”";
 
 "detail.symbolAndRank" = "%@ · #%@";
 "detail.chart7d" = "Últimos 7 dias";

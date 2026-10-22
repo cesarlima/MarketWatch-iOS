@@ -7,6 +7,10 @@ enum L10n {
 
     enum Search {
         static let placeholder = text("search.placeholder")
+
+        static func noResults(_ query: String) -> String {
+            text("state.empty.search", query)
+        }
     }
 
     enum State {

@@ -28,6 +28,12 @@ final class StateView: UIView {
             messageLabel.isHidden = true
             retryButton.isHidden = true
 
+        case let .empty(message):
+            spinner.stopAnimating()
+            messageLabel.text = message
+            messageLabel.isHidden = false
+            retryButton.isHidden = true
+
         case let .error(message):
             spinner.stopAnimating()
             messageLabel.text = message

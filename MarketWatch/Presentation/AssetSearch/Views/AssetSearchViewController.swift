@@ -6,6 +6,7 @@ final class AssetSearchViewController: UIViewController {
     private let viewModel: AssetSearchViewModel
     private let imageLoader: ImageLoader
     private let tableView = UITableView()
+    private let stateView = StateView()
     private let disposeBag = DisposeBag()
 
     init(viewModel: AssetSearchViewModel,
@@ -28,10 +29,12 @@ final class AssetSearchViewController: UIViewController {
 
     func bind(to searchController: UISearchController) {
         loadViewIfNeeded()
-        let input = AssetSearchViewModel.Input(query: searchController.searchBar.rx.text.orEmpty.asObservable())
+        let input = AssetSearchViewModel.Input(query: searchController.searchBar.rx.text.orEmpty.asObservable(),
+                                               retry: stateView.retryTap.asObservable())
         let output = viewModel.transform(input)
 
         bindCells(output.cells)
+        bindContentState(output.contentState)
         bindIsSearchActive(output.isSearchActive, to: searchController)
     }
 }
@@ -43,6 +46,7 @@ private extension AssetSearchViewController {
         tableView.register(AssetCell.self,
                            forCellReuseIdentifier: AssetCell.reuseIdentifier)
         tableView.keyboardDismissMode = .onDrag
+        tableView.backgroundView = stateView
         view.addSubview(tableView)
         tableView.pin(to: view)
     }
@@ -58,6 +62,14 @@ private extension AssetSearchViewController {
                 cell.configure(with: cellViewModel,
                                imageLoader: imageLoader)
             }
+            .disposed(by: disposeBag)
+    }
+
+    func bindContentState(_ contentState: Driver<ContentState>) {
+        contentState
+            .drive(onNext: { [stateView] state in
+                stateView.render(state)
+            })
             .disposed(by: disposeBag)
     }
 

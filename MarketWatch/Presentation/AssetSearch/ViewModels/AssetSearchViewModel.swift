@@ -4,10 +4,12 @@ import RxSwift
 final class AssetSearchViewModel {
     struct Input {
         let query: Observable<String>
+        let retry: Observable<Void>
     }
 
     struct Output {
         let cells: Driver<[AssetCellViewModel]>
+        let contentState: Driver<ContentState>
         let isSearchActive: Driver<Bool>
     }
 
@@ -28,8 +30,10 @@ final class AssetSearchViewModel {
 
     func transform(_ input: Input) -> Output {
         let query = input.query.map(Self.trimmed)
+        let search = searchStates(for: query, retry: input.retry)
 
-        return Output(cells: makeCells(for: query),
+        return Output(cells: makeCells(from: search),
+                      contentState: makeContentState(from: search),
                       isSearchActive: searchActiveState(for: query))
     }
 }
@@ -37,11 +41,20 @@ final class AssetSearchViewModel {
 // MARK: - Output
 
 private extension AssetSearchViewModel {
-    func makeCells(for query: Observable<String>) -> Driver<[AssetCellViewModel]> {
-        searchResults(for: query)
+    func makeCells(from search: Observable<SearchState>) -> Driver<[AssetCellViewModel]> {
+        search
+            .map(Self.assets)
+            .distinctUntilChanged()
             .map { [formatter] assets in
                 assets.map { AssetCellViewModel(asset: $0, formatter: formatter) }
             }
+            .asDriver(onErrorDriveWith: .empty())
+    }
+
+    func makeContentState(from search: Observable<SearchState>) -> Driver<ContentState> {
+        search
+            .map(Self.contentState)
+            .distinctUntilChanged()
             .asDriver(onErrorDriveWith: .empty())
     }
 
@@ -56,19 +69,33 @@ private extension AssetSearchViewModel {
 // MARK: - Search
 
 private extension AssetSearchViewModel {
-    func searchResults(for query: Observable<String>) -> Observable<[Asset]> {
-        query
+    enum SearchState {
+        case idle
+        case loading
+        case finished(query: String, Result<[Asset], AppError>)
+    }
+
+    func searchStates(for query: Observable<String>,
+                      retry: Observable<Void>) -> Observable<SearchState> {
+        let typedText = query
             .debounce(Self.debounce, scheduler: scheduler)
             .distinctUntilChanged()
-            .flatMapLatest { [repository] text -> Observable<[Asset]> in
+            .share(replay: 1)
+
+        return Observable
+            .merge(typedText, retry.withLatestFrom(typedText))
+            .flatMapLatest { [repository] text -> Observable<SearchState> in
                 guard Self.isSearchable(text) else {
-                    return .just([])
+                    return .just(.idle)
                 }
                 return repository
                     .searchAssets(query: text)
+                    .asResult()
                     .asObservable()
-                    .catchAndReturn([])
+                    .map { .finished(query: text, $0) }
+                    .startWith(.loading)
             }
+            .share(replay: 1)
     }
 
     static func trimmed(_ text: String) -> String {
@@ -77,5 +104,35 @@ private extension AssetSearchViewModel {
 
     static func isSearchable(_ text: String) -> Bool {
         text.count >= minimumQueryLength
+    }
+}
+
+// MARK: - Presentation
+
+private extension AssetSearchViewModel {
+    static func assets(in search: SearchState) -> [Asset] {
+        guard case let .finished(_, .success(assets)) = search else {
+            return []
+        }
+        return assets
+    }
+
+    static func contentState(for search: SearchState) -> ContentState {
+        switch search {
+        case .idle:
+            return .loaded
+
+        case .loading:
+            return .loading
+
+        case let .finished(query, .success(assets)) where assets.isEmpty:
+            return .empty(message: L10n.Search.noResults(query))
+
+        case .finished(_, .success):
+            return .loaded
+
+        case let .finished(_, .failure(error)):
+            return .error(message: error.message)
+        }
     }
 }
