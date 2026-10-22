@@ -25,6 +25,10 @@ extension AssetListState {
         loading == .refresh
     }
 
+    var isLoadingNextPage: Bool {
+        loading == .nextPage
+    }
+
     /// The first page arrived, nothing is loading and the API said there is more.
     var canLoadNextPage: Bool {
         loadedPage > 0 && loading == .none && hasMore

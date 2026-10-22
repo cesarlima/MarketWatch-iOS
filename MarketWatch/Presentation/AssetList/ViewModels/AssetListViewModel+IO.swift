@@ -6,6 +6,7 @@ extension AssetListViewModel {
         let selection: Observable<Int>
         let retry: Observable<Void>
         let refresh: Observable<Void>
+        let displayedRow: Observable<Int>
     }
 
     struct Output {
@@ -14,5 +15,6 @@ extension AssetListViewModel {
         let selectedAsset: Signal<Asset>
         let isRefreshing: Driver<Bool>
         let transientError: Signal<String>
+        let isLoadingNextPage: Driver<Bool>
     }
 }

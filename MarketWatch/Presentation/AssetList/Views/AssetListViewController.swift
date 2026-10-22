@@ -11,6 +11,7 @@ final class AssetListViewController: UIViewController {
     private let stateView = StateView()
     private let errorBanner = ErrorBanner()
     private let refreshControl = UIRefreshControl()
+    private let nextPageSpinner = UIActivityIndicatorView(style: .medium)
     private let disposeBag = DisposeBag()
 
     init(viewModel: AssetListViewModel,
@@ -43,6 +44,8 @@ private extension AssetListViewController {
                            forCellReuseIdentifier: AssetCell.reuseIdentifier)
         tableView.backgroundView = stateView
         tableView.refreshControl = refreshControl
+        nextPageSpinner.frame.size.height = 44
+        tableView.tableFooterView = nextPageSpinner
         view.addSubview(tableView)
         tableView.pin(to: view)
     }
@@ -66,7 +69,8 @@ private extension AssetListViewController {
         let selection = tableView.rx.itemSelected.map(\.row)
         let input = AssetListViewModel.Input(selection: selection,
                                              retry: stateView.retryTap.asObservable(),
-                                             refresh: refreshControl.rx.controlEvent(.valueChanged).asObservable())
+                                             refresh: refreshControl.rx.controlEvent(.valueChanged).asObservable(),
+                                             displayedRow: tableView.rx.willDisplayCell.map(\.indexPath.row))
         let output = viewModel.transform(input)
 
         bindCells(output.cells)
@@ -74,7 +78,14 @@ private extension AssetListViewController {
         bindSelectedAsset(output.selectedAsset)
         bindIsRefreshing(output.isRefreshing)
         bindTransientError(output.transientError)
+        bindIsLoadingNextPage(output.isLoadingNextPage)
         deselectTappedRows()
+    }
+
+    func bindIsLoadingNextPage(_ isLoadingNextPage: Driver<Bool>) {
+        isLoadingNextPage
+            .drive(nextPageSpinner.rx.isAnimating)
+            .disposed(by: disposeBag)
     }
 
     func bindTransientError(_ transientError: Signal<String>) {

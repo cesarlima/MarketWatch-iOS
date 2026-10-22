@@ -2,6 +2,8 @@ import RxCocoa
 import RxSwift
 
 final class AssetListViewModel {
+    static let nextPageThreshold = 5
+
     private let loader: AssetListLoader
     private let formatter: AssetFormatter
     private let disposeBag = DisposeBag()
@@ -19,7 +21,8 @@ final class AssetListViewModel {
                       contentState: makeContentState(),
                       selectedAsset: selectedAsset(at: input.selection),
                       isRefreshing: refreshingState(),
-                      transientError: transientErrors())
+                      transientError: transientErrors(),
+                      isLoadingNextPage: loadingNextPageState())
     }
 }
 
@@ -34,6 +37,14 @@ private extension AssetListViewModel {
 
         input.refresh
             .subscribe(onNext: { [loader] in loader.refresh() })
+            .disposed(by: disposeBag)
+
+        input.displayedRow
+            .withLatestFrom(loader.state) { row, state in
+                row >= state.assets.count - Self.nextPageThreshold
+            }
+            .filter { $0 }
+            .subscribe(onNext: { [loader] _ in loader.loadNextPage() })
             .disposed(by: disposeBag)
     }
 }
@@ -71,6 +82,13 @@ private extension AssetListViewModel {
     func refreshingState() -> Driver<Bool> {
         loader.state
             .map(\.isRefreshing)
+            .distinctUntilChanged()
+            .asDriver(onErrorDriveWith: .empty())
+    }
+
+    func loadingNextPageState() -> Driver<Bool> {
+        loader.state
+            .map(\.isLoadingNextPage)
             .distinctUntilChanged()
             .asDriver(onErrorDriveWith: .empty())
     }
