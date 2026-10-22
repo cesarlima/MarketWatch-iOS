@@ -9,6 +9,7 @@ final class AssetListViewController: UIViewController {
     private let imageLoader: ImageLoader
     private let tableView = UITableView()
     private let stateView = StateView()
+    private let refreshControl = UIRefreshControl()
     private let disposeBag = DisposeBag()
 
     init(viewModel: AssetListViewModel,
@@ -39,6 +40,7 @@ private extension AssetListViewController {
         tableView.register(AssetCell.self,
                            forCellReuseIdentifier: AssetCell.reuseIdentifier)
         tableView.backgroundView = stateView
+        tableView.refreshControl = refreshControl
         view.addSubview(tableView)
         tableView.pin(to: view)
     }
@@ -50,13 +52,21 @@ private extension AssetListViewController {
     func bind() {
         let selection = tableView.rx.itemSelected.map(\.row)
         let input = AssetListViewModel.Input(selection: selection,
-                                             retry: stateView.retryTap.asObservable())
+                                             retry: stateView.retryTap.asObservable(),
+                                             refresh: refreshControl.rx.controlEvent(.valueChanged).asObservable())
         let output = viewModel.transform(input)
 
         bindCells(output.cells)
         bindContentState(output.contentState)
         bindSelectedAsset(output.selectedAsset)
+        bindIsRefreshing(output.isRefreshing)
         deselectTappedRows()
+    }
+
+    func bindIsRefreshing(_ isRefreshing: Driver<Bool>) {
+        isRefreshing
+            .drive(refreshControl.rx.isRefreshing)
+            .disposed(by: disposeBag)
     }
 
     func bindCells(_ cells: Driver<[AssetCellViewModel]>) {

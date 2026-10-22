@@ -82,6 +82,41 @@ final class AssetListViewModelTests: XCTestCase {
         XCTAssertEqual(repository.requestedPages, [.init(page: 1, pageSize: 25), .init(page: 1, pageSize: 25)])
     }
 
+    func test_refresh_reloadsAndTogglesIsRefreshing() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture()], at: 100)
+        let refresh = scheduler.createHotObservable([.next(1000, ())]).asObservable()
+
+        let isRefreshing = record(sut, refresh: refresh).isRefreshing
+
+        XCTAssertEqual(isRefreshing.events, [.next(0, false), .next(1000, true), .next(1100, false)])
+        XCTAssertEqual(repository.requestedPages.count, 2)
+    }
+
+    func test_refresh_replacesCells() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture(id: "bitcoin")], at: 100)
+        scheduler.scheduleAt(900) {
+            repository.assetsResponse = self.response([.fixture(id: "ethereum")], at: 100)
+        }
+        let refresh = scheduler.createHotObservable([.next(1000, ())]).asObservable()
+
+        let cells = record(sut, refresh: refresh).cells
+
+        XCTAssertEqual(cells.events.map(\.time), [100, 1100])
+        XCTAssertEqual(cells.events.last?.value.element?.map(\.id), ["ethereum"])
+    }
+
+    func test_refresh_keepsListOnScreenWhileLoading() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture()], at: 100)
+        let refresh = scheduler.createHotObservable([.next(1000, ())]).asObservable()
+
+        let contentState = record(sut, refresh: refresh).contentState
+
+        XCTAssertEqual(contentState.events, [.next(0, .loading), .next(100, .loaded)])
+    }
+
     func test_selection_emitsAssetAtSelectedRow() {
         let (sut, repository) = makeSUT()
         let bitcoin = Asset.fixture(id: "bitcoin")
@@ -119,13 +154,16 @@ final class AssetListViewModelTests: XCTestCase {
     /// Drivers must be built inside `SharingScheduler.mock` to deliver on the test scheduler.
     private func record(_ sut: AssetListViewModel,
                         selection: Observable<Int> = .never(),
-                        retry: Observable<Void> = .never()) -> RecordedOutput {
+                        retry: Observable<Void> = .never(),
+                        refresh: Observable<Void> = .never()) -> RecordedOutput {
         let recorded = RecordedOutput(cells: scheduler.createObserver([AssetCellViewModel].self),
                                       contentState: scheduler.createObserver(ContentState.self),
-                                      selectedAsset: scheduler.createObserver(Asset.self))
+                                      selectedAsset: scheduler.createObserver(Asset.self),
+                                      isRefreshing: scheduler.createObserver(Bool.self))
         SharingScheduler.mock(scheduler: scheduler) {
             let output = sut.transform(AssetListViewModel.Input(selection: selection,
-                                                                retry: retry))
+                                                                retry: retry,
+                                                                refresh: refresh))
             output.cells
                 .drive(recorded.cells)
                 .disposed(by: disposeBag)
@@ -134,6 +172,9 @@ final class AssetListViewModelTests: XCTestCase {
                 .disposed(by: disposeBag)
             output.selectedAsset
                 .emit(to: recorded.selectedAsset)
+                .disposed(by: disposeBag)
+            output.isRefreshing
+                .drive(recorded.isRefreshing)
                 .disposed(by: disposeBag)
         }
         scheduler.start()
@@ -147,4 +188,5 @@ private struct RecordedOutput {
     let cells: TestableObserver<[AssetCellViewModel]>
     let contentState: TestableObserver<ContentState>
     let selectedAsset: TestableObserver<Asset>
+    let isRefreshing: TestableObserver<Bool>
 }
