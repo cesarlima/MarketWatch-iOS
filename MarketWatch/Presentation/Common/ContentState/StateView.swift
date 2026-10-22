@@ -1,8 +1,15 @@
+import RxCocoa
+import RxSwift
 import UIKit
 
 final class StateView: UIView {
     private let spinner = UIActivityIndicatorView(style: .large)
     private let messageLabel = UILabel()
+    private let retryButton = UIButton(type: .system)
+
+    var retryTap: ControlEvent<Void> {
+        retryButton.rx.tap
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -19,15 +26,24 @@ final class StateView: UIView {
         case .loading:
             spinner.startAnimating()
             messageLabel.isHidden = true
+            retryButton.isHidden = true
+
+        case let .empty(message):
+            spinner.stopAnimating()
+            messageLabel.text = message
+            messageLabel.isHidden = false
+            retryButton.isHidden = true
 
         case let .error(message):
             spinner.stopAnimating()
             messageLabel.text = message
             messageLabel.isHidden = false
+            retryButton.isHidden = false
 
         case .loaded:
             spinner.stopAnimating()
             messageLabel.isHidden = true
+            retryButton.isHidden = true
         }
     }
 }
@@ -41,8 +57,12 @@ private extension StateView {
         messageLabel.textColor = .secondaryLabel
         messageLabel.textAlignment = .center
         messageLabel.numberOfLines = 0
+        retryButton.setTitle(L10n.State.retry, for: .normal)
+        retryButton.titleLabel?.font = .preferredFont(forTextStyle: .body)
+        retryButton.titleLabel?.adjustsFontForContentSizeCategory = true
+        retryButton.isHidden = true
 
-        let stack = UIStackView(arrangedSubviews: [spinner, messageLabel])
+        let stack = UIStackView(arrangedSubviews: [spinner, messageLabel, retryButton])
         stack.axis = .vertical
         stack.alignment = .center
         stack.spacing = 12

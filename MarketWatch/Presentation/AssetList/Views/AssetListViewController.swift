@@ -9,6 +9,9 @@ final class AssetListViewController: UIViewController {
     private let imageLoader: ImageLoader
     private let tableView = UITableView()
     private let stateView = StateView()
+    private let errorBanner = ErrorBanner()
+    private let refreshControl = UIRefreshControl()
+    private let nextPageSpinner = UIActivityIndicatorView(style: .medium)
     private let disposeBag = DisposeBag()
 
     init(viewModel: AssetListViewModel,
@@ -28,6 +31,7 @@ final class AssetListViewController: UIViewController {
         title = L10n.List.title
         view.backgroundColor = .systemBackground
         setUpTableView()
+        setUpErrorBanner()
         bind()
     }
 }
@@ -39,8 +43,22 @@ private extension AssetListViewController {
         tableView.register(AssetCell.self,
                            forCellReuseIdentifier: AssetCell.reuseIdentifier)
         tableView.backgroundView = stateView
+        tableView.refreshControl = refreshControl
+        nextPageSpinner.frame.size.height = 44
+        tableView.tableFooterView = nextPageSpinner
         view.addSubview(tableView)
         tableView.pin(to: view)
+    }
+
+    func setUpErrorBanner() {
+        errorBanner.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(errorBanner)
+
+        NSLayoutConstraint.activate([
+            errorBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            errorBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            errorBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor)
+        ])
     }
 }
 
@@ -48,13 +66,40 @@ private extension AssetListViewController {
 
 private extension AssetListViewController {
     func bind() {
-        let input = AssetListViewModel.Input(selection: tableView.rx.itemSelected.map(\.row))
+        let selection = tableView.rx.itemSelected.map(\.row)
+        let input = AssetListViewModel.Input(selection: selection,
+                                             retry: stateView.retryTap.asObservable(),
+                                             refresh: refreshControl.rx.controlEvent(.valueChanged).asObservable(),
+                                             displayedRow: tableView.rx.willDisplayCell.map(\.indexPath.row))
         let output = viewModel.transform(input)
 
         bindCells(output.cells)
         bindContentState(output.contentState)
         bindSelectedAsset(output.selectedAsset)
+        bindIsRefreshing(output.isRefreshing)
+        bindTransientError(output.transientError)
+        bindIsLoadingNextPage(output.isLoadingNextPage)
         deselectTappedRows()
+    }
+
+    func bindIsLoadingNextPage(_ isLoadingNextPage: Driver<Bool>) {
+        isLoadingNextPage
+            .drive(nextPageSpinner.rx.isAnimating)
+            .disposed(by: disposeBag)
+    }
+
+    func bindTransientError(_ transientError: Signal<String>) {
+        transientError
+            .emit(onNext: { [errorBanner] message in
+                errorBanner.show(message)
+            })
+            .disposed(by: disposeBag)
+    }
+
+    func bindIsRefreshing(_ isRefreshing: Driver<Bool>) {
+        isRefreshing
+            .drive(refreshControl.rx.isRefreshing)
+            .disposed(by: disposeBag)
     }
 
     func bindCells(_ cells: Driver<[AssetCellViewModel]>) {

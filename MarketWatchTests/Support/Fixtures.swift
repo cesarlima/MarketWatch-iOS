@@ -33,6 +33,18 @@ extension Asset {
             sparkline7d: sparkline7d
         )
     }
+
+    /// One asset per number, with ids "coin-1", "coin-2"…
+    static func fixtures(_ numbers: ClosedRange<Int>) -> [Asset] {
+        numbers.map { fixture(id: "coin-\($0)") }
+    }
+}
+
+extension AssetPage {
+    static func fixture(_ assets: [Asset] = [.fixture()],
+                        hasMore: Bool = false) -> AssetPage {
+        AssetPage(assets: assets, hasMore: hasMore)
+    }
 }
 
 enum FixtureLoader {

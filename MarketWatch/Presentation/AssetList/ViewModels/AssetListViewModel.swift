@@ -2,72 +2,101 @@ import RxCocoa
 import RxSwift
 
 final class AssetListViewModel {
-    struct Input {
-        let selection: Observable<Int>
-    }
+    static let nextPageThreshold = 5
 
-    struct Output {
-        let cells: Driver<[AssetCellViewModel]>
-        let contentState: Driver<ContentState>
-        let selectedAsset: Signal<Asset>
-    }
-
-    static let pageSize = 25
-
-    private let repository: AssetRepository
+    private let loader: AssetListLoader
     private let formatter: AssetFormatter
+    private let disposeBag = DisposeBag()
 
-    init(repository: AssetRepository,
+    init(loader: AssetListLoader,
          formatter: AssetFormatter) {
-        self.repository = repository
+        self.loader = loader
         self.formatter = formatter
     }
 
     func transform(_ input: Input) -> Output {
-        let firstPage = loadFirstPage()
+        bindLoadingActions(input)
 
-        return Output(cells: cells(from: firstPage),
-                      contentState: contentState(from: firstPage),
-                      selectedAsset: selectedAsset(at: input.selection, in: firstPage))
+        return Output(cells: makeCells(),
+                      contentState: makeContentState(),
+                      selectedAsset: selectedAsset(at: input.selection),
+                      isRefreshing: refreshingState(),
+                      transientError: transientErrors(),
+                      isLoadingNextPage: loadingNextPageState())
     }
 }
 
-// MARK: - Streams
+// MARK: - Actions
 
 private extension AssetListViewModel {
-    typealias PageResult = Result<[Asset], AppError>
+    func bindLoadingActions(_ input: Input) {
+        input.retry
+            .startWith(())
+            .subscribe(onNext: { [loader] in loader.load() })
+            .disposed(by: disposeBag)
 
-    func loadFirstPage() -> Observable<PageResult> {
-        repository
-            .assets(page: 1, pageSize: Self.pageSize)
-            .asResult()
-            .asObservable()
-            .share(replay: 1)
+        input.refresh
+            .subscribe(onNext: { [loader] in loader.refresh() })
+            .disposed(by: disposeBag)
+
+        input.displayedRow
+            .withLatestFrom(loader.state) { row, state in
+                row >= state.assets.count - Self.nextPageThreshold
+            }
+            .filter { $0 }
+            .subscribe(onNext: { [loader] _ in loader.loadNextPage() })
+            .disposed(by: disposeBag)
     }
+}
 
-    func cells(from page: Observable<PageResult>) -> Driver<[AssetCellViewModel]> {
-        page
-            .compactMap { result in try? result.get() }
+// MARK: - Output
+
+private extension AssetListViewModel {
+    func makeCells() -> Driver<[AssetCellViewModel]> {
+        loader.state
+            .filter(\.lastLoadSucceeded)
+            .map(\.assets)
+            .distinctUntilChanged()
             .map { [formatter] assets in
                 assets.map { AssetCellViewModel(asset: $0, formatter: formatter) }
             }
             .asDriver(onErrorDriveWith: .empty())
     }
 
-    func contentState(from page: Observable<PageResult>) -> Driver<ContentState> {
-        page
-            .map(ContentState.init)
-            .startWith(.loading)
+    func makeContentState() -> Driver<ContentState> {
+        loader.state
+            .compactMap(ContentState.init)
+            .distinctUntilChanged()
             .asDriver(onErrorDriveWith: .empty())
     }
 
-    func selectedAsset(at selection: Observable<Int>,
-                       in page: Observable<PageResult>) -> Signal<Asset> {
+    func selectedAsset(at selection: Observable<Int>) -> Signal<Asset> {
         selection
-            .withLatestFrom(page) { row, result -> Asset? in
-                let assets = (try? result.get()) ?? []
+            .withLatestFrom(loader.state) { row, state in
+                state.assets.indices.contains(row) ? state.assets[row] : nil
+            }
+            .compactMap { $0 }
+            .asSignal(onErrorSignalWith: .empty())
+    }
 
-                return assets.indices.contains(row) ? assets[row] : nil
+    func refreshingState() -> Driver<Bool> {
+        loader.state
+            .map(\.isRefreshing)
+            .distinctUntilChanged()
+            .asDriver(onErrorDriveWith: .empty())
+    }
+
+    func loadingNextPageState() -> Driver<Bool> {
+        loader.state
+            .map(\.isLoadingNextPage)
+            .distinctUntilChanged()
+            .asDriver(onErrorDriveWith: .empty())
+    }
+
+    func transientErrors() -> Signal<String> {
+        loader.failures
+            .withLatestFrom(loader.state) { error, state in
+                state.assets.isEmpty ? nil : error.message
             }
             .compactMap { $0 }
             .asSignal(onErrorSignalWith: .empty())

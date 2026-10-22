@@ -11,11 +11,13 @@ final class MockAssetRepository: AssetRepository {
         allAssets = Self.loadAssets(from: bundle)
     }
 
-    func assets(page: Int, pageSize: Int) -> Single<[Asset]> {
+    func assets(page: Int, pageSize: Int) -> Single<AssetPage> {
         allAssets.map { assets in
             let alreadyLoaded = (page - 1) * pageSize
+            let loadedAfterThisPage = alreadyLoaded + pageSize
 
-            return Array(assets.dropFirst(alreadyLoaded).prefix(pageSize))
+            return AssetPage(assets: Array(assets.dropFirst(alreadyLoaded).prefix(pageSize)),
+                             hasMore: loadedAfterThisPage < assets.count)
         }
     }
 

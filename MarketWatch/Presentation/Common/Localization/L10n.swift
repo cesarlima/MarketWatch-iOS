@@ -5,6 +5,14 @@ enum L10n {
         static let title = text("list.title")
     }
 
+    enum Search {
+        static let placeholder = text("search.placeholder")
+
+        static func noResults(_ query: String) -> String {
+            text("state.empty.search", query)
+        }
+    }
+
     enum State {
         static let retry = text("state.retry")
     }
