@@ -160,12 +160,79 @@ final class AssetListViewModelTests: XCTestCase {
         XCTAssertEqual(selectedAsset.events, [.next(200, ethereum)])
     }
 
+    func test_synchronousLoad_presentsAssetsWithoutDuplicateRequests() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = .just([.fixture()])
+
+        let recorded = record(sut)
+
+        XCTAssertEqual(recorded.cells.events.last?.value.element?.map(\.id), ["bitcoin"])
+        XCTAssertEqual(recorded.contentState.events.last?.value.element, .loaded)
+        XCTAssertEqual(repository.requestedPages.count, 1)
+    }
+
+    func test_repeatedRefreshFailure_emitsOneBannerForEachAttempt() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture()], at: 100)
+        scheduler.scheduleAt(200) {
+            repository.assetsResponse = .error(AppError.offline)
+        }
+        let refresh = scheduler.createHotObservable([.next(300, ()), .next(500, ())]).asObservable()
+
+        let recorded = record(sut, refresh: refresh)
+
+        XCTAssertEqual(recorded.transientError.events, [
+            .next(300, "Sem conexão com a internet."),
+            .next(500, "Sem conexão com a internet.")
+        ])
+        XCTAssertEqual(recorded.cells.events.count, 1)
+        XCTAssertEqual(recorded.isRefreshing.events.last?.value.element, false)
+    }
+
+    func test_transientError_doesNotReplayWhenSubscribedAfterFailure() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture()], at: 100)
+        scheduler.scheduleAt(200) {
+            repository.assetsResponse = .error(AppError.offline)
+        }
+        let refresh = scheduler.createHotObservable([.next(300, ()), .next(500, ())]).asObservable()
+        let errors = scheduler.createObserver(String.self)
+        SharingScheduler.mock(scheduler: scheduler) {
+            let output = sut.transform(.init(selection: .never(), retry: .never(), refresh: refresh))
+            output.cells.drive().disposed(by: disposeBag)
+            scheduler.scheduleAt(400) {
+                output.transientError.emit(to: errors).disposed(by: self.disposeBag)
+            }
+        }
+
+        scheduler.start()
+
+        XCTAssertEqual(errors.events, [.next(500, "Sem conexão com a internet.")])
+    }
+
+    func test_selectionAfterRefresh_usesUpdatedAssetsAndIgnoresInvalidRows() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture(id: "old")], at: 100)
+        let asset = Asset.fixture(id: "new")
+        scheduler.scheduleAt(200) {
+            repository.assetsResponse = .just([asset])
+        }
+        let refresh = scheduler.createHotObservable([.next(300, ())]).asObservable()
+        let selection = scheduler.createHotObservable([
+            .next(400, 0), .next(500, -1), .next(600, 1)
+        ]).asObservable()
+
+        let recorded = record(sut, selection: selection, refresh: refresh)
+
+        XCTAssertEqual(recorded.selectedAsset.events, [.next(400, asset)])
+    }
+
     // MARK: - Helpers
 
     private func makeSUT() -> (sut: AssetListViewModel, repository: AssetRepositoryStub) {
         let repository = AssetRepositoryStub()
         let formmater = AssetFormatter(locale: Locale(identifier: "pt_BR"))
-        let sut = AssetListViewModel(repository: repository,
+        let sut = AssetListViewModel(loader: AssetListLoader(repository: repository),
                                      formatter: formmater)
         return (sut, repository)
     }

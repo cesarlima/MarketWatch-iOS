@@ -12,7 +12,8 @@ final class AppComposer {
     }
 
     func makeAssetList(onAssetSelected: @escaping (Asset) -> Void) -> UIViewController {
-        let viewModel = AssetListViewModel(repository: repository,
+        let loader = AssetListLoader(repository: repository)
+        let viewModel = AssetListViewModel(loader: loader,
                                            formatter: formatter)
         let viewController = AssetListViewController(viewModel: viewModel,
                                                      imageLoader: imageLoader)
