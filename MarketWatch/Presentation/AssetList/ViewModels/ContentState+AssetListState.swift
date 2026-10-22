@@ -1,11 +1,3 @@
-enum ContentState: Equatable {
-    case loading
-    case loaded
-    case error(message: String)
-}
-
-// MARK: - List state
-
 extension ContentState {
     /// `nil` while refreshing or loading more: the screen keeps what it shows until the load ends.
     init?(_ state: AssetListState) {
