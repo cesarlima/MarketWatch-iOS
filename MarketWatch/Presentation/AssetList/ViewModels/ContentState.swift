@@ -7,10 +7,10 @@ enum ContentState: Equatable {
 // MARK: - List state
 
 extension ContentState {
-    /// `nil` while refreshing: the screen keeps what it shows until the refresh ends.
+    /// `nil` while refreshing or loading more: the screen keeps what it shows until the load ends.
     init?(_ state: AssetListState) {
         switch (state.loading, state.error) {
-        case (.refresh, _):
+        case (.refresh, _), (.nextPage, _):
             return nil
 
         case (.initial, _):

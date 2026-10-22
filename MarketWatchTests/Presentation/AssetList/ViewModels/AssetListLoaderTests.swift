@@ -43,7 +43,7 @@ final class AssetListLoaderTests: XCTestCase {
         sut.refresh()
 
         XCTAssertEqual(failures, [.offline, .offline])
-        let expected = AssetListState(assets: [asset], loading: .none, error: .offline)
+        let expected = AssetListState(assets: [asset], loading: .none, error: .offline, loadedPage: 1)
         XCTAssertEqual(statesAtFailure, [expected, expected])
     }
 
@@ -74,7 +74,7 @@ final class AssetListLoaderTests: XCTestCase {
 
         sut.load()
 
-        XCTAssertEqual(states.last, AssetListState(assets: [asset], loading: .none))
+        XCTAssertEqual(states.last, AssetListState(assets: [asset], loading: .none, loadedPage: 1))
         XCTAssertEqual(repository.requestedPages, [.init(page: 1, pageSize: 25)])
     }
 
@@ -92,8 +92,8 @@ final class AssetListLoaderTests: XCTestCase {
         sut.refresh()
 
         XCTAssertEqual(Array(states.suffix(2)), [
-            AssetListState(assets: [asset], loading: .refresh),
-            AssetListState(assets: [asset], loading: .none, error: .offline)
+            AssetListState(assets: [asset], loading: .refresh, loadedPage: 1),
+            AssetListState(assets: [asset], loading: .none, error: .offline, loadedPage: 1)
         ])
     }
 
@@ -136,4 +136,149 @@ final class AssetListLoaderTests: XCTestCase {
         XCTAssertNil(observedLoader)
         XCTAssertTrue(cancelled)
     }
+
+    // MARK: - Next page
+
+    func test_loadNextPage_requestsNextPageAndAppends() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: true))
+        repository.assetsResponsesByPage[2] = .just(.fixture(Asset.fixtures(26...30)))
+        sut.load()
+
+        sut.loadNextPage()
+
+        XCTAssertEqual(repository.requestedPages.map(\.page), [1, 2])
+        XCTAssertEqual(currentState(of: sut)?.assets, Asset.fixtures(1...30))
+    }
+
+    func test_loadNextPage_whileLoading_keepsAssetsAndShowsLoadingMore() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: true))
+        sut.load()
+
+        sut.loadNextPage()
+
+        XCTAssertEqual(currentState(of: sut)?.loading, .nextPage)
+        XCTAssertEqual(currentState(of: sut)?.assets, Asset.fixtures(1...25))
+    }
+
+    func test_loadNextPage_skipsAssetsAlreadyInList() {
+        let (sut, repository) = makeSUT()
+        let movedAsset = Asset.fixture(id: "coin-3", price: 999)
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: true))
+        repository.assetsResponsesByPage[2] = .just(.fixture([movedAsset] + Asset.fixtures(26...27)))
+        sut.load()
+
+        sut.loadNextPage()
+
+        XCTAssertEqual(currentState(of: sut)?.assets, Asset.fixtures(1...27))
+    }
+
+    func test_loadNextPage_beforeFirstPage_doesNothing() {
+        let (sut, repository) = makeSUT()
+
+        sut.loadNextPage()
+
+        XCTAssertTrue(repository.requestedPages.isEmpty)
+    }
+
+    func test_loadNextPage_whileNextPageLoads_isIgnored() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: true))
+        sut.load()
+
+        sut.loadNextPage()
+        sut.loadNextPage()
+
+        XCTAssertEqual(repository.requestedPages.map(\.page), [1, 2])
+    }
+
+    func test_loadNextPage_duringFirstLoad_isIgnored() {
+        let (sut, repository) = makeSUT()
+        sut.load()
+
+        sut.loadNextPage()
+
+        XCTAssertEqual(repository.requestedPages.map(\.page), [1])
+    }
+
+    func test_loadNextPage_afterLastPage_doesNothing() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: false))
+        sut.load()
+
+        sut.loadNextPage()
+
+        XCTAssertEqual(repository.requestedPages.map(\.page), [1])
+    }
+
+    func test_nextPageFailure_keepsAssetsAndRetriesSamePage() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: true))
+        repository.assetsResponsesByPage[2] = .error(AppError.rateLimited)
+        var failures: [AppError] = []
+        let subscription = sut.failures.subscribe(onNext: { failures.append($0) })
+        defer { subscription.dispose() }
+        sut.load()
+
+        sut.loadNextPage()
+        sut.loadNextPage()
+
+        XCTAssertEqual(repository.requestedPages.map(\.page), [1, 2, 2])
+        XCTAssertEqual(failures, [.rateLimited, .rateLimited])
+        XCTAssertEqual(currentState(of: sut)?.assets, Asset.fixtures(1...25))
+    }
+
+    func test_refresh_cancelsNextPageAndRestartsPagination() {
+        let scheduler = TestScheduler(initialClock: 0)
+        let (sut, repository) = makeSUT()
+        let secondPage = scheduler.createColdObservable([
+            .next(100, AssetPage.fixture(Asset.fixtures(26...50))), .completed(100)
+        ])
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: true))
+        repository.assetsResponsesByPage[2] = secondPage.asSingle()
+        sut.load()
+        sut.loadNextPage()
+        scheduler.scheduleAt(10) {
+            repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(51...75), hasMore: true))
+            sut.refresh()
+        }
+
+        scheduler.start()
+        sut.loadNextPage()
+
+        XCTAssertEqual(secondPage.subscriptions.first, Subscription(0, 10))
+        XCTAssertEqual(currentState(of: sut)?.assets, Asset.fixtures(51...75))
+        XCTAssertEqual(repository.requestedPages.map(\.page), [1, 2, 1, 2])
+    }
+
+    func test_refresh_afterSeveralPages_startsAgainFromSecondPage() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponsesByPage[1] = .just(.fixture(Asset.fixtures(1...25), hasMore: true))
+        repository.assetsResponsesByPage[2] = .just(.fixture(Asset.fixtures(26...50), hasMore: true))
+        sut.load()
+        sut.loadNextPage()
+
+        sut.refresh()
+        sut.loadNextPage()
+
+        XCTAssertEqual(repository.requestedPages.map(\.page), [1, 2, 1, 2])
+    }
+
+    // MARK: - Helpers
+
+    private func makeSUT() -> (sut: AssetListLoader, repository: AssetRepositoryStub) {
+        let repository = AssetRepositoryStub()
+        return (AssetListLoader(repository: repository), repository)
+    }
+
+    private func currentState(of sut: AssetListLoader) -> AssetListState? {
+        var state: AssetListState?
+        sut.state
+            .take(1)
+            .subscribe(onNext: { state = $0 })
+            .dispose()
+        return state
+    }
+
 }

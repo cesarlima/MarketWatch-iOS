@@ -3,11 +3,15 @@ struct AssetListState: Equatable {
         case none
         case initial
         case refresh
+        case nextPage
     }
 
     var assets: [Asset] = []
     var loading: Loading = .none
     var error: AppError?
+    /// The last page that arrived successfully; 0 before the first one.
+    var loadedPage = 0
+    var hasMore = false
 }
 
 // MARK: - Conditions
@@ -19,5 +23,10 @@ extension AssetListState {
 
     var isRefreshing: Bool {
         loading == .refresh
+    }
+
+    /// The first page arrived, nothing is loading and the API said there is more.
+    var canLoadNextPage: Bool {
+        loadedPage > 0 && loading == .none && hasMore
     }
 }

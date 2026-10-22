@@ -26,6 +26,12 @@ final class ContentStateTests: XCTestCase {
         XCTAssertEqual(ContentState(state), .loaded)
     }
 
+    func test_loadingNextPage_keepsCurrentScreen() {
+        let state = AssetListState(assets: [.fixture()], loading: .nextPage)
+
+        XCTAssertNil(ContentState(state))
+    }
+
     func test_refreshing_keepsCurrentScreen() {
         let state = AssetListState(loading: .refresh)
 

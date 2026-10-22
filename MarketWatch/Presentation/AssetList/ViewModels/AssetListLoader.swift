@@ -5,7 +5,7 @@ final class AssetListLoader {
     private static let pageSize = 25
 
     private let repository: AssetRepository
-    private let requests = PublishRelay<AssetListState.Loading>()
+    private let requests = PublishRelay<Request>()
     private let stateRelay = BehaviorRelay(value: AssetListState())
     private let failureRelay = PublishRelay<AppError>()
     private let disposeBag = DisposeBag()
@@ -24,34 +24,47 @@ final class AssetListLoader {
     }
 
     func load() {
-        requests.accept(.initial)
+        requests.accept(Request(page: 1, loading: .initial))
     }
 
     func refresh() {
-        requests.accept(.refresh)
+        requests.accept(Request(page: 1, loading: .refresh))
+    }
+
+    func loadNextPage() {
+        let state = stateRelay.value
+        guard state.canLoadNextPage else {
+            return
+        }
+        requests.accept(Request(page: state.loadedPage + 1, loading: .nextPage))
     }
 }
 
 // MARK: - Requests
 
 private extension AssetListLoader {
+    struct Request {
+        let page: Int
+        let loading: AssetListState.Loading
+    }
+
     func bindRequests() {
         requests
-            .do(onNext: { [weak self] loading in
-                self?.startLoading(loading)
+            .do(onNext: { [weak self] request in
+                self?.startLoading(request.loading)
             })
-            .flatMapLatest { [repository] _ in
+            .flatMapLatest { [repository] request in
                 repository
-                    .assets(page: 1, pageSize: Self.pageSize)
-                    .map(\.assets)
+                    .assets(page: request.page, pageSize: Self.pageSize)
                     .asResult()
                     .asObservable()
+                    .map { (request, $0) }
             }
             .observe(on: MainScheduler.instance)
-            .subscribe(onNext: { [weak self] result in
+            .subscribe(onNext: { [weak self] request, result in
                 switch result {
-                case let .success(assets):
-                    self?.receive(assets)
+                case let .success(page):
+                    self?.receive(page, for: request)
 
                 case let .failure(error):
                     self?.receiveError(error)
@@ -72,8 +85,15 @@ private extension AssetListLoader {
         stateRelay.accept(state)
     }
 
-    func receive(_ assets: [Asset]) {
-        stateRelay.accept(AssetListState(assets: assets, loading: .none))
+    func receive(_ page: AssetPage, for request: Request) {
+        let assets = request.page == 1
+            ? page.assets
+            : stateRelay.value.assets.appendingNew(page.assets)
+
+        stateRelay.accept(AssetListState(assets: assets,
+                                         loading: .none,
+                                         loadedPage: request.page,
+                                         hasMore: page.hasMore))
     }
 
     func receiveError(_ error: AppError) {
@@ -82,5 +102,15 @@ private extension AssetListLoader {
         state.error = error
         stateRelay.accept(state)
         failureRelay.accept(error)
+    }
+}
+
+// MARK: - Appending
+
+private extension Array where Element == Asset {
+    /// Rankings move between requests, so a new page may repeat an asset already in the list.
+    func appendingNew(_ assets: [Asset]) -> [Asset] {
+        let ids = Set(map(\.id))
+        return self + assets.filter { !ids.contains($0.id) }
     }
 }
