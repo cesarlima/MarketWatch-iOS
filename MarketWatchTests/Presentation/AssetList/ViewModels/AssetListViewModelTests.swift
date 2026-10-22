@@ -117,6 +117,37 @@ final class AssetListViewModelTests: XCTestCase {
         XCTAssertEqual(contentState.events, [.next(0, .loading), .next(100, .loaded)])
     }
 
+    func test_refreshFailureWithList_emitsTransientErrorAndKeepsCells() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = response([.fixture()], at: 100)
+        scheduler.scheduleAt(900) {
+            repository.assetsResponse = self.failure(.rateLimited, at: 100)
+        }
+        let refresh = scheduler.createHotObservable([.next(1000, ())]).asObservable()
+
+        let recorded = record(sut, refresh: refresh)
+
+        XCTAssertEqual(recorded.transientError.events, [
+            .next(1100, "Muitas requisições em pouco tempo. Tente novamente em instantes.")
+        ])
+        XCTAssertEqual(recorded.cells.events.map(\.time), [100])
+        XCTAssertEqual(recorded.contentState.events, [.next(0, .loading), .next(100, .loaded)])
+    }
+
+    func test_refreshFailureWithoutList_keepsErrorStateWithoutBanner() {
+        let (sut, repository) = makeSUT()
+        repository.assetsResponse = failure(.offline, at: 100)
+        let refresh = scheduler.createHotObservable([.next(1000, ())]).asObservable()
+
+        let recorded = record(sut, refresh: refresh)
+
+        XCTAssertEqual(recorded.transientError.events, [])
+        XCTAssertEqual(recorded.contentState.events, [
+            .next(0, .loading),
+            .next(100, .error(message: "Sem conexão com a internet."))
+        ])
+    }
+
     func test_selection_emitsAssetAtSelectedRow() {
         let (sut, repository) = makeSUT()
         let bitcoin = Asset.fixture(id: "bitcoin")
@@ -159,7 +190,8 @@ final class AssetListViewModelTests: XCTestCase {
         let recorded = RecordedOutput(cells: scheduler.createObserver([AssetCellViewModel].self),
                                       contentState: scheduler.createObserver(ContentState.self),
                                       selectedAsset: scheduler.createObserver(Asset.self),
-                                      isRefreshing: scheduler.createObserver(Bool.self))
+                                      isRefreshing: scheduler.createObserver(Bool.self),
+                                      transientError: scheduler.createObserver(String.self))
         SharingScheduler.mock(scheduler: scheduler) {
             let output = sut.transform(AssetListViewModel.Input(selection: selection,
                                                                 retry: retry,
@@ -176,6 +208,9 @@ final class AssetListViewModelTests: XCTestCase {
             output.isRefreshing
                 .drive(recorded.isRefreshing)
                 .disposed(by: disposeBag)
+            output.transientError
+                .emit(to: recorded.transientError)
+                .disposed(by: disposeBag)
         }
         scheduler.start()
         return recorded
@@ -189,4 +224,5 @@ private struct RecordedOutput {
     let contentState: TestableObserver<ContentState>
     let selectedAsset: TestableObserver<Asset>
     let isRefreshing: TestableObserver<Bool>
+    let transientError: TestableObserver<String>
 }

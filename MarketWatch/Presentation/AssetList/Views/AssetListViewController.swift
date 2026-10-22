@@ -9,6 +9,7 @@ final class AssetListViewController: UIViewController {
     private let imageLoader: ImageLoader
     private let tableView = UITableView()
     private let stateView = StateView()
+    private let errorBanner = ErrorBanner()
     private let refreshControl = UIRefreshControl()
     private let disposeBag = DisposeBag()
 
@@ -29,6 +30,7 @@ final class AssetListViewController: UIViewController {
         title = L10n.List.title
         view.backgroundColor = .systemBackground
         setUpTableView()
+        setUpErrorBanner()
         bind()
     }
 }
@@ -43,6 +45,17 @@ private extension AssetListViewController {
         tableView.refreshControl = refreshControl
         view.addSubview(tableView)
         tableView.pin(to: view)
+    }
+
+    func setUpErrorBanner() {
+        errorBanner.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(errorBanner)
+
+        NSLayoutConstraint.activate([
+            errorBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            errorBanner.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            errorBanner.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor)
+        ])
     }
 }
 
@@ -60,7 +73,16 @@ private extension AssetListViewController {
         bindContentState(output.contentState)
         bindSelectedAsset(output.selectedAsset)
         bindIsRefreshing(output.isRefreshing)
+        bindTransientError(output.transientError)
         deselectTappedRows()
+    }
+
+    func bindTransientError(_ transientError: Signal<String>) {
+        transientError
+            .emit(onNext: { [errorBanner] message in
+                errorBanner.show(message)
+            })
+            .disposed(by: disposeBag)
     }
 
     func bindIsRefreshing(_ isRefreshing: Driver<Bool>) {

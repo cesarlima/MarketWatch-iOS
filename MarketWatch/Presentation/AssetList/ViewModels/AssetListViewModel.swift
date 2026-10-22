@@ -13,6 +13,7 @@ final class AssetListViewModel {
         let contentState: Driver<ContentState>
         let selectedAsset: Signal<Asset>
         let isRefreshing: Driver<Bool>
+        let transientError: Signal<String>
     }
 
     static let pageSize = 25
@@ -31,11 +32,13 @@ final class AssetListViewModel {
         let firstPage = loadFirstPage(on: triggers(from: input),
                                       refreshActivity: refreshActivity)
         let assets = loadedAssets(from: firstPage)
+        let hasList = hasList(from: assets)
 
         return Output(cells: cells(from: assets),
-                      contentState: contentState(from: firstPage),
+                      contentState: contentState(from: firstPage, hasList: hasList),
                       selectedAsset: selectedAsset(at: input.selection, in: assets),
-                      isRefreshing: refreshActivity.asDriver())
+                      isRefreshing: refreshActivity.asDriver(),
+                      transientError: transientError(from: firstPage, hasList: hasList))
     }
 }
 
@@ -93,6 +96,13 @@ private extension AssetListViewModel {
             .share(replay: 1)
     }
 
+    /// Whether a non-empty list is on screen, starting with `false`.
+    func hasList(from assets: Observable<[Asset]>) -> Observable<Bool> {
+        assets
+            .map { !$0.isEmpty }
+            .startWith(false)
+    }
+
     func cells(from assets: Observable<[Asset]>) -> Driver<[AssetCellViewModel]> {
         assets
             .map { [formatter] assets in
@@ -101,12 +111,17 @@ private extension AssetListViewModel {
             .asDriver(onErrorDriveWith: .empty())
     }
 
-    func contentState(from page: Observable<PageLoad>) -> Driver<ContentState> {
+    /// A failure with a list on screen keeps the list; it is shown by `transientError` instead.
+    func contentState(from page: Observable<PageLoad>,
+                      hasList: Observable<Bool>) -> Driver<ContentState> {
         page
-            .map { load -> ContentState in
+            .withLatestFrom(hasList) { load, hasList -> ContentState in
                 switch load {
                 case .loading:
                     return .loading
+
+                case .finished(.failure) where hasList:
+                    return .loaded
 
                 case let .finished(result):
                     return ContentState(result)
@@ -114,6 +129,19 @@ private extension AssetListViewModel {
             }
             .distinctUntilChanged()
             .asDriver(onErrorDriveWith: .empty())
+    }
+
+    func transientError(from page: Observable<PageLoad>,
+                        hasList: Observable<Bool>) -> Signal<String> {
+        page
+            .withLatestFrom(hasList) { load, hasList -> String? in
+                guard case let .finished(.failure(error)) = load, hasList else {
+                    return nil
+                }
+                return error.message
+            }
+            .compactMap { $0 }
+            .asSignal(onErrorSignalWith: .empty())
     }
 
     func selectedAsset(at selection: Observable<Int>,
