@@ -171,6 +171,44 @@ final class AssetSearchViewModelTests: XCTestCase {
         XCTAssertEqual(recorded.cells.events.last?.value.element, [])
     }
 
+    // MARK: - Selection
+
+    func test_selection_emitsAssetAtSelectedRow() {
+        let (sut, repository) = makeSUT()
+        let solar = Asset.fixture(id: "solar", name: "Solar")
+        repository.searchResponsesByQuery["sol"] = .just([.fixture(id: "solana"), solar])
+        let query = typing([.next(0, "sol")])
+        let selection = scheduler.createHotObservable([.next(1000, 1)]).asObservable()
+
+        let selectedAsset = record(sut, query: query, selection: selection).selectedAsset
+
+        XCTAssertEqual(selectedAsset.events, [.next(1000, solar)])
+    }
+
+    func test_selection_outsideResults_isIgnored() {
+        let (sut, repository) = makeSUT()
+        repository.searchResponsesByQuery["sol"] = .just([.fixture(id: "solana"), .fixture(id: "solar")])
+        let query = typing([.next(0, "sol")])
+        let selection = scheduler.createHotObservable([.next(1000, 5)]).asObservable()
+
+        let selectedAsset = record(sut, query: query, selection: selection).selectedAsset
+
+        XCTAssertTrue(selectedAsset.events.isEmpty)
+    }
+
+    func test_selection_usesCurrentResults() {
+        let (sut, repository) = makeSUT()
+        let ethereum = Asset.fixture(id: "ethereum", name: "Ethereum")
+        repository.searchResponsesByQuery["sol"] = .just([.fixture(id: "solana")])
+        repository.searchResponsesByQuery["eth"] = .just([ethereum])
+        let query = typing([.next(0, "sol"), .next(1000, "eth")])
+        let selection = scheduler.createHotObservable([.next(2000, 0)]).asObservable()
+
+        let selectedAsset = record(sut, query: query, selection: selection).selectedAsset
+
+        XCTAssertEqual(selectedAsset.events, [.next(2000, ethereum)])
+    }
+
     // MARK: - Helpers
 
     private func makeSUT() -> (sut: AssetSearchViewModel, repository: AssetRepositoryStub) {
@@ -194,13 +232,16 @@ final class AssetSearchViewModelTests: XCTestCase {
     /// Drivers must be built inside `SharingScheduler.mock` to deliver on the test scheduler.
     private func record(_ sut: AssetSearchViewModel,
                         query: Observable<String>,
-                        retry: Observable<Void> = .never()) -> RecordedOutput {
+                        retry: Observable<Void> = .never(),
+                        selection: Observable<Int> = .never()) -> RecordedOutput {
         let recorded = RecordedOutput(cells: scheduler.createObserver([AssetCellViewModel].self),
                                       contentState: scheduler.createObserver(ContentState.self),
-                                      isSearchActive: scheduler.createObserver(Bool.self))
+                                      isSearchActive: scheduler.createObserver(Bool.self),
+                                      selectedAsset: scheduler.createObserver(Asset.self))
         SharingScheduler.mock(scheduler: scheduler) {
             let output = sut.transform(AssetSearchViewModel.Input(query: query,
-                                                                  retry: retry))
+                                                                  retry: retry,
+                                                                  selection: selection))
             output.cells
                 .drive(recorded.cells)
                 .disposed(by: disposeBag)
@@ -209,6 +250,9 @@ final class AssetSearchViewModelTests: XCTestCase {
                 .disposed(by: disposeBag)
             output.isSearchActive
                 .drive(recorded.isSearchActive)
+                .disposed(by: disposeBag)
+            output.selectedAsset
+                .emit(to: recorded.selectedAsset)
                 .disposed(by: disposeBag)
         }
         scheduler.start()
@@ -222,4 +266,5 @@ private struct RecordedOutput {
     let cells: TestableObserver<[AssetCellViewModel]>
     let contentState: TestableObserver<ContentState>
     let isSearchActive: TestableObserver<Bool>
+    let selectedAsset: TestableObserver<Asset>
 }

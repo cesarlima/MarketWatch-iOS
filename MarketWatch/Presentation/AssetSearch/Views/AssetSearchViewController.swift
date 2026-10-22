@@ -3,6 +3,8 @@ import RxSwift
 import UIKit
 
 final class AssetSearchViewController: UIViewController {
+    var onAssetSelected: ((Asset) -> Void)?
+
     private let viewModel: AssetSearchViewModel
     private let imageLoader: ImageLoader
     private let tableView = UITableView()
@@ -30,12 +32,15 @@ final class AssetSearchViewController: UIViewController {
     func bind(to searchController: UISearchController) {
         loadViewIfNeeded()
         let input = AssetSearchViewModel.Input(query: searchController.searchBar.rx.text.orEmpty.asObservable(),
-                                               retry: stateView.retryTap.asObservable())
+                                               retry: stateView.retryTap.asObservable(),
+                                               selection: tableView.rx.itemSelected.map(\.row))
         let output = viewModel.transform(input)
 
         bindCells(output.cells)
         bindContentState(output.contentState)
         bindIsSearchActive(output.isSearchActive, to: searchController)
+        bindSelectedAsset(output.selectedAsset)
+        deselectTappedRows()
     }
 }
 
@@ -69,6 +74,22 @@ private extension AssetSearchViewController {
         contentState
             .drive(onNext: { [stateView] state in
                 stateView.render(state)
+            })
+            .disposed(by: disposeBag)
+    }
+
+    func bindSelectedAsset(_ selectedAsset: Signal<Asset>) {
+        selectedAsset
+            .emit(onNext: { [weak self] asset in
+                self?.onAssetSelected?(asset)
+            })
+            .disposed(by: disposeBag)
+    }
+
+    func deselectTappedRows() {
+        tableView.rx.itemSelected
+            .subscribe(onNext: { [tableView] indexPath in
+                tableView.deselectRow(at: indexPath, animated: true)
             })
             .disposed(by: disposeBag)
     }

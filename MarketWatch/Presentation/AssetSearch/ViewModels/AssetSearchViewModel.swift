@@ -5,12 +5,14 @@ final class AssetSearchViewModel {
     struct Input {
         let query: Observable<String>
         let retry: Observable<Void>
+        let selection: Observable<Int>
     }
 
     struct Output {
         let cells: Driver<[AssetCellViewModel]>
         let contentState: Driver<ContentState>
         let isSearchActive: Driver<Bool>
+        let selectedAsset: Signal<Asset>
     }
 
     static let debounce: RxTimeInterval = .milliseconds(400)
@@ -31,19 +33,20 @@ final class AssetSearchViewModel {
     func transform(_ input: Input) -> Output {
         let query = input.query.map(Self.trimmed)
         let search = searchStates(for: query, retry: input.retry)
+        let results = search.map(Self.assets)
 
-        return Output(cells: makeCells(from: search),
+        return Output(cells: makeCells(from: results),
                       contentState: makeContentState(from: search),
-                      isSearchActive: searchActiveState(for: query))
+                      isSearchActive: searchActiveState(for: query),
+                      selectedAsset: selectedAsset(at: input.selection, in: results))
     }
 }
 
 // MARK: - Output
 
 private extension AssetSearchViewModel {
-    func makeCells(from search: Observable<SearchState>) -> Driver<[AssetCellViewModel]> {
-        search
-            .map(Self.assets)
+    func makeCells(from results: Observable<[Asset]>) -> Driver<[AssetCellViewModel]> {
+        results
             .distinctUntilChanged()
             .map { [formatter] assets in
                 assets.map { AssetCellViewModel(asset: $0, formatter: formatter) }
@@ -56,6 +59,16 @@ private extension AssetSearchViewModel {
             .map(Self.contentState)
             .distinctUntilChanged()
             .asDriver(onErrorDriveWith: .empty())
+    }
+
+    func selectedAsset(at selection: Observable<Int>,
+                       in results: Observable<[Asset]>) -> Signal<Asset> {
+        selection
+            .withLatestFrom(results) { row, assets in
+                assets.indices.contains(row) ? assets[row] : nil
+            }
+            .compactMap { $0 }
+            .asSignal(onErrorSignalWith: .empty())
     }
 
     func searchActiveState(for query: Observable<String>) -> Driver<Bool> {

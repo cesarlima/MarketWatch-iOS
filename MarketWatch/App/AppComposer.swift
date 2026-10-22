@@ -19,16 +19,17 @@ final class AppComposer {
         let viewController = AssetListViewController(viewModel: viewModel,
                                                      imageLoader: imageLoader)
         viewController.onAssetSelected = onAssetSelected
-        viewController.navigationItem.searchController = makeAssetSearch()
+        viewController.navigationItem.searchController = makeAssetSearch(onAssetSelected: onAssetSelected)
         return viewController
     }
 
-    func makeAssetSearch() -> UISearchController {
+    func makeAssetSearch(onAssetSelected: @escaping (Asset) -> Void) -> UISearchController {
         let viewModel = AssetSearchViewModel(repository: repository,
                                              formatter: formatter,
                                              scheduler: MainScheduler.instance)
         let results = AssetSearchViewController(viewModel: viewModel,
                                                 imageLoader: imageLoader)
+        results.onAssetSelected = onAssetSelected
         let searchController = UISearchController(searchResultsController: results)
         searchController.searchBar.placeholder = L10n.Search.placeholder
         results.bind(to: searchController)
