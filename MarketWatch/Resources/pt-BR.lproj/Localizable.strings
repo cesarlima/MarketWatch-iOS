@@ -1,5 +1,7 @@
 "list.title" = "Mercado";
 
+"search.placeholder" = "Buscar por nome ou símbolo";
+
 "state.retry" = "Tentar novamente";
 
 "detail.symbolAndRank" = "%@ · #%@";

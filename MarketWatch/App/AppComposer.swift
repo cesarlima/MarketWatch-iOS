@@ -1,4 +1,5 @@
 import Alamofire
+import RxSwift
 import UIKit
 
 final class AppComposer {
@@ -18,7 +19,20 @@ final class AppComposer {
         let viewController = AssetListViewController(viewModel: viewModel,
                                                      imageLoader: imageLoader)
         viewController.onAssetSelected = onAssetSelected
+        viewController.navigationItem.searchController = makeAssetSearch()
         return viewController
+    }
+
+    func makeAssetSearch() -> UISearchController {
+        let viewModel = AssetSearchViewModel(repository: repository,
+                                             formatter: formatter,
+                                             scheduler: MainScheduler.instance)
+        let results = AssetSearchViewController(viewModel: viewModel,
+                                                imageLoader: imageLoader)
+        let searchController = UISearchController(searchResultsController: results)
+        searchController.searchBar.placeholder = L10n.Search.placeholder
+        results.bind(to: searchController)
+        return searchController
     }
 
     func makeAssetDetail(asset: Asset) -> UIViewController {

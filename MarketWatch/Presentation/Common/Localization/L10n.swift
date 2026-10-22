@@ -5,6 +5,10 @@ enum L10n {
         static let title = text("list.title")
     }
 
+    enum Search {
+        static let placeholder = text("search.placeholder")
+    }
+
     enum State {
         static let retry = text("state.retry")
     }
