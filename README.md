@@ -5,7 +5,9 @@
 App iOS de cotações de criptomoedas feito em UIKit, RxSwift e Alamofire (MVVM, CocoaPods),
 com dados da API pública do [CoinGecko](https://www.coingecko.com/en/api).
 
-<!-- screenshots claro/escuro -->
+| Claro | Escuro |
+|:---:|:---:|
+| <img src="docs/images/light.gif" alt="Demonstração do MarketWatch no modo claro" width="250"> | <img src="docs/images/dark.gif" alt="Demonstração do MarketWatch no modo escuro" width="250"> |
 
 ## Funcionalidades
 
